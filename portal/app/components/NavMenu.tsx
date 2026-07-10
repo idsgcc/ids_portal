@@ -14,6 +14,9 @@ const NAV_ITEMS = [
     { label: "Contractors", href: "/contractors" },
     { label: "Suppliers", href: "/suppliers" },
   ]},
+  { group: "Settings", items: [
+    { label: "Admin", href: "/admin" },
+  ]},
 ];
 
 export function NavMenu() {

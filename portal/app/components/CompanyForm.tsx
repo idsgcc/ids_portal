@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export type CompanyType = "contractor" | "supplier";
@@ -21,17 +21,6 @@ const EMPTY: FormData = {
   specialization: "", status: "", website: "", trade_license: "", notes: "",
   category: "", lead_time_days: "", payment_terms: "",
 };
-
-const CONTRACTOR_SPECIALIZATIONS = [
-  "Fiber Optic Networks", "5G Infrastructure", "Network Integration",
-  "Civil & Structural Works", "Tower & Mast Installation", "Power Systems",
-  "Microwave & Transmission", "OSP / ISP Cabling", "Project Management", "Other",
-];
-const SUPPLIER_CATEGORIES = [
-  "Fiber Optic Cable", "Network Equipment", "Power & Energy Systems",
-  "Passive Infrastructure", "Active Equipment", "Tools & Test Equipment",
-  "Cables & Connectors", "Civil Materials", "Safety Equipment", "Other",
-];
 const CONTRACTOR_STATUSES = ["active", "inactive"];
 const SUPPLIER_STATUSES = ["preferred", "approved", "inactive"];
 
@@ -67,6 +56,14 @@ export default function CompanyForm({
   const defaultStatus = type === "contractor" ? "active" : "approved";
   const [form, setForm] = useState<FormData>({ ...EMPTY, status: defaultStatus, ...initial });
   const [saving, setSaving] = useState(false);
+  const [lookupOptions, setLookupOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const lookupType = type === "contractor" ? "contractor_specialization" : "supplier_category";
+    fetch(`/api/admin/lookups?type=${lookupType}`)
+      .then((r) => r.json())
+      .then((items: { value: string }[]) => setLookupOptions(items.map((i) => i.value)));
+  }, [type]);
 
   function set(key: keyof FormData, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -146,9 +143,9 @@ export default function CompanyForm({
             <Field label="Status">{sel("status", isContractor ? CONTRACTOR_STATUSES : SUPPLIER_STATUSES)}</Field>
           </div>
           {isContractor ? (
-            <Field label="Specialization">{sel("specialization", CONTRACTOR_SPECIALIZATIONS)}</Field>
+            <Field label="Specialization">{sel("specialization", lookupOptions)}</Field>
           ) : (
-            <Field label="Category">{sel("category", SUPPLIER_CATEGORIES)}</Field>
+            <Field label="Category">{sel("category", lookupOptions)}</Field>
           )}
           <Field label="Website">{inp("website", "url", "https://")}</Field>
           {isContractor && (
