@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-type Task = { id: string; status: string; phase: string };
+type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; template_task: { sequence_order: number } | null };
 type Plan = { project_tasks: Task[] };
 type Project = {
   id: string;
@@ -40,20 +40,29 @@ const PRIORITY_STYLES: Record<string, string> = {
   low:    "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
 };
 
+const DEADLINE_WARN_DAYS = 5;
+
+function deadlineStatus(date: string | null): "overdue" | "soon" | null {
+  if (!date) return null;
+  const daysUntil = Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
+  if (daysUntil < 0) return "overdue";
+  if (daysUntil <= DEADLINE_WARN_DAYS) return "soon";
+  return null;
+}
+
+function fmtShortDate(d: string) {
+  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
 function statusStyle(s: string) {
   return PROJECT_STATUSES.find((x) => x.value === s)?.color ?? PROJECT_STATUSES[0].color;
 }
-function statusLabel(s: string) {
-  return PROJECT_STATUSES.find((x) => x.value === s)?.label ?? s;
-}
 
-function currentPhase(plans: Plan[]): string {
-  const tasks = plans.flatMap((p) => p.project_tasks ?? []);
-  const inProgress = tasks.find((t) => t.status === "in_progress");
-  if (inProgress) return inProgress.phase;
-  const first = tasks.find((t) => t.status === "not_started");
-  if (first) return first.phase;
-  return "—";
+function nextStep(plans: Plan[]): { name: string; phase: string; planned_finish: string | null } | null {
+  const tasks = [...plans.flatMap((p) => p.project_tasks ?? [])].sort(
+    (a, b) => (a.template_task?.sequence_order ?? 999) - (b.template_task?.sequence_order ?? 999)
+  );
+  return tasks.find((t) => t.status === "in_progress") ?? tasks.find((t) => t.status === "not_started") ?? null;
 }
 
 function taskStats(plans: Plan[]) {
@@ -251,7 +260,7 @@ export default function ProjectsPage() {
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   {/* Table header */}
                   <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
-                    {["Project", "Client", "Status", "Priority", "Current Phase", "Progress"].map((h) => (
+                    {["Project", "Client", "Status", "Priority", "Next Step", "Progress"].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
                   </div>
@@ -259,11 +268,13 @@ export default function ProjectsPage() {
                   {/* Rows */}
                   {items.map((p, i) => {
                     const { done, total } = taskStats(p.project_plans ?? []);
-                    const phase = currentPhase(p.project_plans ?? []);
+                    const step = nextStep(p.project_plans ?? []);
+                    const dl = deadlineStatus(step?.planned_finish ?? null);
+                    const rowTint = dl === "overdue" ? "bg-red-50/60 dark:bg-red-900/10" : dl === "soon" ? "bg-amber-50/60 dark:bg-amber-900/10" : "";
                     return (
                       <div
                         key={p.id}
-                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] items-center px-4 py-3 gap-2 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
+                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
                       >
                         <a href={`/projects/${p.id}`} className="font-medium text-sm hover:text-blue-600 dark:hover:text-blue-400 truncate">
                           {p.name}
@@ -293,7 +304,21 @@ export default function ProjectsPage() {
                             <option value="low">Low</option>
                           </select>
                         </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{phase}</span>
+                        <div className="min-w-0">
+                          {step ? (
+                            <div className="truncate">
+                              <span className="text-xs text-gray-700 dark:text-gray-200 font-medium truncate block">{step.name}</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-xs text-gray-400 dark:text-gray-500 truncate">{step.phase}</span>
+                                {step.planned_finish && dl && (
+                                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${dl === "overdue" ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"}`}>
+                                    {dl === "overdue" ? `Overdue · ${fmtShortDate(step.planned_finish)}` : `Due ${fmtShortDate(step.planned_finish)}`}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                        </div>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div className="h-full bg-blue-500 rounded-full" style={{ width: total > 0 ? `${Math.round((done / total) * 100)}%` : "0%" }} />
