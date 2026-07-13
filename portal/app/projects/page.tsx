@@ -58,11 +58,23 @@ function statusStyle(s: string) {
   return PROJECT_STATUSES.find((x) => x.value === s)?.color ?? PROJECT_STATUSES[0].color;
 }
 
-function nextStep(plans: Plan[]): { name: string; phase: string; planned_finish: string | null } | null {
-  const tasks = [...plans.flatMap((p) => p.project_tasks ?? [])].sort(
+type StepInfo = { name: string; phase: string; planned_finish: string | null };
+
+function sortedTasks(plans: Plan[]) {
+  return [...plans.flatMap((p) => p.project_tasks ?? [])].sort(
     (a, b) => (a.template_task?.sequence_order ?? 999) - (b.template_task?.sequence_order ?? 999)
   );
-  return tasks.find((t) => t.status === "in_progress") ?? tasks.find((t) => t.status === "not_started") ?? null;
+}
+
+function currentStep(plans: Plan[]): (StepInfo & { sequence_order: number | null }) | null {
+  const t = sortedTasks(plans).find((t) => t.status === "in_progress") ?? null;
+  return t ? { ...t, sequence_order: t.template_task?.sequence_order ?? null } : null;
+}
+
+function nextStep(plans: Plan[], afterSequence: number | null): StepInfo | null {
+  const sorted = sortedTasks(plans);
+  if (afterSequence === null) return sorted.find((t) => t.status !== "completed") ?? null;
+  return sorted.find((t) => (t.template_task?.sequence_order ?? 999) > afterSequence) ?? null;
 }
 
 function taskStats(plans: Plan[]) {
@@ -259,8 +271,8 @@ export default function ProjectsPage() {
 
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   {/* Table header */}
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
-                    {["Project", "Client", "Status", "Priority", "Next Step", "Progress"].map((h) => (
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_1.5fr_1fr] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
+                    {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", "Progress"].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
                   </div>
@@ -268,13 +280,14 @@ export default function ProjectsPage() {
                   {/* Rows */}
                   {items.map((p, i) => {
                     const { done, total } = taskStats(p.project_plans ?? []);
-                    const step = nextStep(p.project_plans ?? []);
-                    const dl = deadlineStatus(step?.planned_finish ?? null);
+                    const current = currentStep(p.project_plans ?? []);
+                    const next = nextStep(p.project_plans ?? [], current?.sequence_order ?? null);
+                    const dl = deadlineStatus(current?.planned_finish ?? null);
                     const rowTint = dl === "overdue" ? "bg-red-50/60 dark:bg-red-900/10" : dl === "soon" ? "bg-amber-50/60 dark:bg-amber-900/10" : "";
                     return (
                       <div
                         key={p.id}
-                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
+                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_1.5fr_1fr] items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
                       >
                         <a href={`/projects/${p.id}`} className="font-medium text-sm hover:text-blue-600 dark:hover:text-blue-400 truncate">
                           {p.name}
@@ -304,19 +317,23 @@ export default function ProjectsPage() {
                             <option value="low">Low</option>
                           </select>
                         </div>
+                        {/* Current Step */}
                         <div className="min-w-0">
-                          {step ? (
-                            <div className="truncate">
-                              <span className="text-xs text-gray-700 dark:text-gray-200 font-medium truncate block">{step.name}</span>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-xs text-gray-400 dark:text-gray-500 truncate">{step.phase}</span>
-                                {step.planned_finish && dl && (
-                                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${dl === "overdue" ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"}`}>
-                                    {dl === "overdue" ? `Overdue · ${fmtShortDate(step.planned_finish)}` : `Due ${fmtShortDate(step.planned_finish)}`}
-                                  </span>
-                                )}
-                              </div>
+                          {current ? (
+                            <div>
+                              <span className="text-xs text-gray-700 dark:text-gray-200 font-medium truncate block">{current.name}</span>
+                              {current.planned_finish && dl && (
+                                <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded mt-0.5 ${dl === "overdue" ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"}`}>
+                                  {dl === "overdue" ? `Overdue · ${fmtShortDate(current.planned_finish)}` : `Due ${fmtShortDate(current.planned_finish)}`}
+                                </span>
+                              )}
                             </div>
+                          ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                        </div>
+                        {/* Next Step */}
+                        <div className="min-w-0">
+                          {next ? (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate block">{next.name}</span>
                           ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                         </div>
                         <div className="flex items-center gap-2">
