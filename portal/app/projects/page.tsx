@@ -102,6 +102,15 @@ export default function ProjectsPage() {
     });
   }
 
+  async function updatePriority(id: string, priority: string) {
+    setProjects((prev) => prev.map((p) => p.id === id ? { ...p, priority } : p));
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority }),
+    });
+  }
+
   async function save() {
     if (!form.name.trim() || !form.client_name.trim() || !form.template_id) return;
     setSaving(true);
@@ -273,9 +282,16 @@ export default function ProjectsPage() {
                           </select>
                         </div>
                         <div>
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${PRIORITY_STYLES[p.priority] ?? PRIORITY_STYLES.medium}`}>
-                            {p.priority}
-                          </span>
+                          <select
+                            className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none capitalize ${PRIORITY_STYLES[p.priority] ?? PRIORITY_STYLES.medium}`}
+                            value={p.priority}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => updatePriority(p.id, e.target.value)}
+                          >
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                          </select>
                         </div>
                         <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{phase}</span>
                         <div className="flex items-center gap-2">

@@ -116,6 +116,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     });
   }
 
+  async function updateProjectPriority(priority: string) {
+    setProject((p) => p ? { ...p, priority } : p);
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority }),
+    });
+  }
+
   async function updateTask(taskId: string, patch: Partial<Task>) {
     setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, ...patch } : t));
     setUpdatingTask(taskId);
@@ -166,7 +175,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
-              <span className="text-xs text-gray-400 capitalize">{project.priority} priority</span>
+              <select
+                className="text-xs text-gray-400 capitalize bg-transparent border-0 cursor-pointer focus:outline-none hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                value={project.priority}
+                onChange={(e) => updateProjectPriority(e.target.value)}
+              >
+                <option value="high">High priority</option>
+                <option value="medium">Medium priority</option>
+                <option value="low">Low priority</option>
+              </select>
             </div>
           </div>
           <div className="text-right">
