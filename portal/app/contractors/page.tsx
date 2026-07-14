@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-type Contact = { id: string; name: string | null; sort_order: number };
+type Contact = { id: string; name: string | null; title: string | null; email: string | null; phone: string | null; sort_order: number };
 
 type Contractor = {
   id: string;
@@ -11,6 +11,9 @@ type Contractor = {
   principal: string[] | null;
   specialization: string | null;
   status: string;
+  website: string | null;
+  trade_license: string | null;
+  notes: string | null;
   contractor_contacts: Contact[];
 };
 
@@ -32,9 +35,31 @@ const STATUS_STYLES: Record<string, string> = {
   inactive: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
 };
 
+function matches(c: Contractor, q: string): boolean {
+  const s = q.toLowerCase();
+  return (
+    c.name.toLowerCase().includes(s) ||
+    (c.country?.toLowerCase().includes(s) ?? false) ||
+    (c.specialization?.toLowerCase().includes(s) ?? false) ||
+    (c.status.toLowerCase().includes(s)) ||
+    (c.website?.toLowerCase().includes(s) ?? false) ||
+    (c.trade_license?.toLowerCase().includes(s) ?? false) ||
+    (c.notes?.toLowerCase().includes(s) ?? false) ||
+    (c.principal?.some((p) => p.toLowerCase().includes(s)) ?? false) ||
+    c.contractor_contacts.some(
+      (ct) =>
+        ct.name?.toLowerCase().includes(s) ||
+        ct.title?.toLowerCase().includes(s) ||
+        ct.email?.toLowerCase().includes(s) ||
+        ct.phone?.toLowerCase().includes(s)
+    )
+  );
+}
+
 export default function ContractorsPage() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/contractors")
@@ -42,8 +67,9 @@ export default function ContractorsPage() {
       .then((d) => { setContractors(d); setLoading(false); });
   }, []);
 
-  const active = contractors.filter((c) => c.status === "active");
-  const inactive = contractors.filter((c) => c.status === "inactive");
+  const filtered = query.trim() ? contractors.filter((c) => matches(c, query.trim())) : contractors;
+  const active = filtered.filter((c) => c.status === "active");
+  const inactive = filtered.filter((c) => c.status === "inactive");
 
   function Group({ label, items }: { label: string; items: Contractor[] }) {
     if (!items.length) return null;
@@ -100,7 +126,7 @@ export default function ContractorsPage() {
           ← Back to portal
         </a>
 
-        <div className="flex items-center justify-between mt-6 mb-8">
+        <div className="flex items-center justify-between mt-6 mb-6">
           <div>
             <h1 className="text-2xl font-bold">Contractors</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Telecom companies we subcontract for</p>
@@ -113,12 +139,30 @@ export default function ContractorsPage() {
           </a>
         </div>
 
+        <div className="relative mb-8">
+          <input
+            type="search"
+            placeholder="Search by name, contact, email, phone, principal…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+        </div>
+
         {loading ? (
           <p className="text-gray-400 text-sm">Loading…</p>
         ) : contractors.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <p className="text-lg font-medium">No contractors yet</p>
             <p className="text-sm mt-1">Click Add Contractor to get started</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">
+            <p className="text-lg font-medium">No results for &ldquo;{query}&rdquo;</p>
+            <p className="text-sm mt-1">Try a different name, contact, or field</p>
           </div>
         ) : (
           <>
