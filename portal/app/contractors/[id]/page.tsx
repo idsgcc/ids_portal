@@ -3,19 +3,27 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 
+type Contact = {
+  id: string;
+  name: string | null;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  sort_order: number;
+};
+
 type Contractor = {
   id: string;
   name: string;
   country: string | null;
-  contact_name: string | null;
-  email: string | null;
-  phone: string | null;
+  principal: string[] | null;
   specialization: string | null;
   status: string;
   website: string | null;
   trade_license: string | null;
   notes: string | null;
   created_at: string;
+  contractor_contacts: Contact[];
 };
 
 const LOGO_COLORS = [
@@ -60,7 +68,7 @@ export default function ContractorDetailPage({ params }: { params: Promise<{ id:
   useEffect(() => {
     fetch(`/api/contractors/${id}`)
       .then((r) => r.json())
-      .then((d) => { setC(d); setLoading(false); });
+      .then((d) => { setC(d?.error ? null : d); setLoading(false); });
   }, [id]);
 
   async function toggleStatus() {
@@ -100,10 +108,15 @@ export default function ContractorDetailPage({ params }: { params: Promise<{ id:
               {c.specialization && (
                 <p className="text-sm text-blue-600 dark:text-blue-400 mt-0.5">{c.specialization}</p>
               )}
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide ${STATUS_STYLES[c.status] ?? STATUS_STYLES.inactive}`}>
                   {c.status}
                 </span>
+                {c.principal?.map((p) => (
+                  <span key={p} className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                    {p}
+                  </span>
+                ))}
                 {c.country && <span className="text-xs text-gray-400">{c.country}</span>}
               </div>
             </div>
@@ -114,16 +127,25 @@ export default function ContractorDetailPage({ params }: { params: Promise<{ id:
         <div className="space-y-3 mb-6">
           <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Company</p>
+            {c.principal?.length ? <Row label="Principal" value={c.principal.join(", ")} /> : null}
             <Row label="Trade License" value={c.trade_license} />
             <Row label="Website" value={c.website} href={c.website ?? undefined} />
           </div>
 
-          {(c.contact_name || c.email || c.phone) && (
-            <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Primary Contact</p>
-              <Row label="Name" value={c.contact_name} />
-              <Row label="Email" value={c.email} href={c.email ? `mailto:${c.email}` : undefined} />
-              <Row label="Phone" value={c.phone} href={c.phone ? `tel:${c.phone}` : undefined} />
+          {c.contractor_contacts.length > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-4">
+              {c.contractor_contacts.map((contact, i) => (
+                <div key={contact.id} className={i > 0 ? "pt-4 border-t border-gray-100 dark:border-gray-800" : ""}>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+                    {i === 0 ? "Primary Contact" : contact.title || `Contact ${i + 1}`}
+                  </p>
+                  <Row label="Name" value={contact.name} />
+                  {contact.title && i > 0 && <Row label="Title" value={contact.title} />}
+                  {i === 0 && contact.title && <Row label="Title" value={contact.title} />}
+                  <Row label="Email" value={contact.email} href={contact.email ? `mailto:${contact.email}` : undefined} />
+                  <Row label="Phone" value={contact.phone} href={contact.phone ? `tel:${contact.phone}` : undefined} />
+                </div>
+              ))}
             </div>
           )}
 

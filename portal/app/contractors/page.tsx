@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from "react";
 
+type Contact = { id: string; name: string | null; sort_order: number };
+
 type Contractor = {
   id: string;
   name: string;
   country: string | null;
-  contact_name: string | null;
-  email: string | null;
-  phone: string | null;
+  principal: string[] | null;
   specialization: string | null;
   status: string;
-  website: string | null;
-  trade_license: string | null;
-  notes: string | null;
+  contractor_contacts: Contact[];
 };
 
 const LOGO_COLORS = [
@@ -71,6 +69,11 @@ export default function ContractorsPage() {
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${STATUS_STYLES[c.status] ?? STATUS_STYLES.inactive}`}>
                       {c.status}
                     </span>
+                    {c.principal?.map((p) => (
+                      <span key={p} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                        {p}
+                      </span>
+                    ))}
                   </div>
                   {c.specialization && (
                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5 truncate">{c.specialization}</p>
@@ -78,8 +81,8 @@ export default function ContractorsPage() {
                   {c.country && (
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{c.country}</p>
                   )}
-                  {c.contact_name && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate">👤 {c.contact_name}</p>
+                  {c.contractor_contacts[0]?.name && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate">👤 {c.contractor_contacts[0].name}{c.contractor_contacts.length > 1 ? ` +${c.contractor_contacts.length - 1}` : ""}</p>
                   )}
                 </div>
               </div>

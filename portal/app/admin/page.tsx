@@ -6,6 +6,12 @@ type LookupValue = { id: string; type: string; value: string; sort_order: number
 
 const SECTIONS = [
   {
+    type: "contractor_principal",
+    label: "Client Entities (Principals)",
+    description: "OETC, NEDC, or any future entity that contractors are aligned to.",
+    placeholder: "e.g. OETC",
+  },
+  {
     type: "contractor_specialization",
     label: "Contractor Specializations",
     description: "Shown in the Specialization dropdown when adding/editing a contractor.",
