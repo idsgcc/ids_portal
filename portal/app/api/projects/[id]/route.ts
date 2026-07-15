@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       project_plans(
         id, name, status, started_date, template_id,
         project_tasks(
-          id, name, phase, status, planned_start, planned_finish,
+          id, name, phase, status, sort_order, planned_start, planned_finish,
           actual_start, actual_finish, notes,
           template_task:template_tasks(sequence_order, duration_days)
         )

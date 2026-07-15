@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; template_task: { sequence_order: number } | null };
+type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; notes: string | null; template_task: { sequence_order: number } | null };
 type Plan = { project_tasks: Task[] };
 type Project = {
   id: string;
@@ -58,7 +58,7 @@ function statusStyle(s: string) {
   return PROJECT_STATUSES.find((x) => x.value === s)?.color ?? PROJECT_STATUSES[0].color;
 }
 
-type StepInfo = { name: string; phase: string; planned_finish: string | null };
+type StepInfo = { name: string; phase: string; planned_finish: string | null; notes: string | null; status: string };
 
 function sortedTasks(plans: Plan[]) {
   return [...plans.flatMap((p) => p.project_tasks ?? [])].sort(
@@ -66,15 +66,29 @@ function sortedTasks(plans: Plan[]) {
   );
 }
 
-function currentStep(plans: Plan[]): (StepInfo & { sequence_order: number | null }) | null {
-  const t = sortedTasks(plans).find((t) => t.status === "in_progress") ?? null;
-  return t ? { ...t, sequence_order: t.template_task?.sequence_order ?? null } : null;
-}
-
-function nextStep(plans: Plan[], afterSequence: number | null): StepInfo | null {
+function getSteps(plans: Plan[]): { current: StepInfo | null; next: StepInfo | null } {
   const sorted = sortedTasks(plans);
-  if (afterSequence === null) return sorted.find((t) => t.status !== "completed") ?? null;
-  return sorted.find((t) => (t.template_task?.sequence_order ?? 999) > afterSequence) ?? null;
+
+  const inProgressIdx = sorted.findIndex((t) => t.status === "in_progress");
+  if (inProgressIdx >= 0) {
+    const curr = sorted[inProgressIdx];
+    const nextTask = sorted.slice(inProgressIdx + 1).find((t) => t.status !== "completed") ?? null;
+    return {
+      current: { name: curr.name, phase: curr.phase, planned_finish: curr.planned_finish, notes: curr.notes, status: curr.status },
+      next: nextTask ? { name: nextTask.name, phase: nextTask.phase, planned_finish: nextTask.planned_finish, notes: nextTask.notes, status: nextTask.status } : null,
+    };
+  }
+
+  // No in_progress: next = first not_started, current = the task just before it
+  const nextIdx = sorted.findIndex((t) => t.status === "not_started");
+  if (nextIdx < 0) return { current: null, next: null };
+
+  const nextTask = sorted[nextIdx];
+  const prevTask = nextIdx > 0 ? sorted[nextIdx - 1] : null;
+  return {
+    current: prevTask ? { name: prevTask.name, phase: prevTask.phase, planned_finish: prevTask.planned_finish, notes: prevTask.notes, status: prevTask.status } : null,
+    next: { name: nextTask.name, phase: nextTask.phase, planned_finish: nextTask.planned_finish, notes: nextTask.notes, status: nextTask.status },
+  };
 }
 
 function taskStats(plans: Plan[]) {
@@ -280,9 +294,8 @@ export default function ProjectsPage() {
                   {/* Rows */}
                   {items.map((p, i) => {
                     const { done, total } = taskStats(p.project_plans ?? []);
-                    const current = currentStep(p.project_plans ?? []);
-                    const next = nextStep(p.project_plans ?? [], current?.sequence_order ?? null);
-                    const dl = deadlineStatus(current?.planned_finish ?? null);
+                    const { current, next } = getSteps(p.project_plans ?? []);
+                    const dl = current?.status === "in_progress" ? deadlineStatus(current.planned_finish) : null;
                     const rowTint = dl === "overdue" ? "bg-red-50/60 dark:bg-red-900/10" : dl === "soon" ? "bg-amber-50/60 dark:bg-amber-900/10" : "";
                     return (
                       <div
@@ -322,6 +335,9 @@ export default function ProjectsPage() {
                           {current ? (
                             <div>
                               <span className="text-xs text-gray-700 dark:text-gray-200 font-medium truncate block">{current.name}</span>
+                              {current.notes && (
+                                <span className="text-xs text-gray-400 dark:text-gray-500 truncate block mt-0.5">{current.notes}</span>
+                              )}
                               {current.planned_finish && dl && (
                                 <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded mt-0.5 ${dl === "overdue" ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"}`}>
                                   {dl === "overdue" ? `Overdue · ${fmtShortDate(current.planned_finish)}` : `Due ${fmtShortDate(current.planned_finish)}`}
