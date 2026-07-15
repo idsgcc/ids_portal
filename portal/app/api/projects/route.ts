@@ -8,7 +8,7 @@ export async function GET() {
       id, name, client_name, status, priority, awarded_date, created_at,
       contractor:contractors(name),
       project_plans(
-        project_tasks(id, name, status, phase, planned_finish, notes, template_task:template_tasks(sequence_order))
+        project_tasks(id, name, status, phase, planned_finish, notes, sort_order, template_task:template_tasks(sequence_order))
       )
     `)
     .order("created_at", { ascending: false });

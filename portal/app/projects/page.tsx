@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; notes: string | null; template_task: { sequence_order: number } | null };
+type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; notes: string | null; sort_order: number | null; template_task: { sequence_order: number } | null };
 type Plan = { project_tasks: Task[] };
 type Project = {
   id: string;
@@ -62,7 +62,9 @@ type StepInfo = { name: string; phase: string; planned_finish: string | null; no
 
 function sortedTasks(plans: Plan[]) {
   return [...plans.flatMap((p) => p.project_tasks ?? [])].sort(
-    (a, b) => (a.template_task?.sequence_order ?? 999) - (b.template_task?.sequence_order ?? 999)
+    (a, b) =>
+      (a.sort_order ?? a.template_task?.sequence_order ?? 999) -
+      (b.sort_order ?? b.template_task?.sequence_order ?? 999)
   );
 }
 
