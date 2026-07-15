@@ -113,6 +113,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [reminderSent, setReminderSent] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState("");
+  const [editingClientName, setEditingClientName] = useState(false);
+  const [clientNameValue, setClientNameValue] = useState("");
 
   // Drag state
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -166,6 +168,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: trimmed }),
+    });
+  }
+
+  async function saveClientName() {
+    const trimmed = clientNameValue.trim();
+    setEditingClientName(false);
+    if (!trimmed || trimmed === project?.client_name) return;
+    setProject((p) => p ? { ...p, client_name: trimmed } : p);
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_name: trimmed }),
     });
   }
 
@@ -308,8 +322,25 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 {project.name}
               </h1>
             )}
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-              {project.client_name}
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 flex items-center gap-1 flex-wrap">
+              {editingClientName ? (
+                <input
+                  autoFocus
+                  className="bg-transparent border-b border-blue-500 focus:outline-none text-sm"
+                  value={clientNameValue}
+                  onChange={(e) => setClientNameValue(e.target.value)}
+                  onBlur={saveClientName}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveClientName(); if (e.key === "Escape") setEditingClientName(false); }}
+                />
+              ) : (
+                <span
+                  className="cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                  onClick={() => { setClientNameValue(project.client_name); setEditingClientName(true); }}
+                  title="Click to edit"
+                >
+                  {project.client_name}
+                </span>
+              )}
               {project.contractor && ` · ${project.contractor.name}`}
               {project.awarded_date && ` · Awarded ${fmtDate(project.awarded_date)}`}
             </p>
