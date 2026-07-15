@@ -74,46 +74,54 @@ export default function ContractorsPage() {
   function Group({ label, items }: { label: string; items: Contractor[] }) {
     if (!items.length) return null;
     return (
-      <div className="mb-10">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">
+      <div className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
           {label} ({items.length})
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((c) => (
-            <a
-              key={c.id}
-              href={`/contractors/${c.id}`}
-              className="block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm transition-all"
-            >
-              <div className="flex items-start gap-4">
-                <div className={`w-12 h-12 rounded-xl ${logoColor(c.name)} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="flex items-center gap-4 px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+            <div className="w-9 shrink-0" />
+            <div className="flex-1">Company Name</div>
+            <div className="w-24 text-right shrink-0 hidden sm:block">Principal</div>
+            <div className="w-16 text-right shrink-0 hidden sm:block">Country</div>
+          </div>
+          {items.map((c) => {
+            const primaryContact = c.contractor_contacts[0];
+            const extraContacts = c.contractor_contacts.length - 1;
+            return (
+              <a
+                key={c.id}
+                href={`/contractors/${c.id}`}
+                className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors first:rounded-t-xl last:rounded-b-xl"
+              >
+                <div className={`w-9 h-9 rounded-lg ${logoColor(c.name)} flex items-center justify-center text-white font-bold text-xs shrink-0`}>
                   {initials(c.name)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-sm truncate">{c.name}</p>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${STATUS_STYLES[c.status] ?? STATUS_STYLES.inactive}`}>
-                      {c.status}
-                    </span>
-                    {c.principal?.map((p) => (
-                      <span key={p} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase tracking-wide">
-                        {p}
-                      </span>
-                    ))}
-                  </div>
+                  <span className="font-semibold text-sm">{c.name}</span>
                   {c.specialization && (
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5 truncate">{c.specialization}</p>
+                    <span className="ml-2 text-[10px] text-blue-600 dark:text-blue-400">{c.specialization}</span>
                   )}
-                  {c.country && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{c.country}</p>
-                  )}
-                  {c.contractor_contacts[0]?.name && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate">👤 {c.contractor_contacts[0].name}{c.contractor_contacts.length > 1 ? ` +${c.contractor_contacts.length - 1}` : ""}</p>
+                  {primaryContact?.name && (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                      {primaryContact.name}{extraContacts > 0 ? ` +${extraContacts}` : ""}
+                      {primaryContact.email && <span className="ml-2">{primaryContact.email}</span>}
+                    </p>
                   )}
                 </div>
-              </div>
-            </a>
-          ))}
+                <div className="w-24 text-right shrink-0 hidden sm:flex justify-end gap-1 flex-wrap">
+                  {c.principal?.map((p) => (
+                    <span key={p} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                      {p}
+                    </span>
+                  ))}
+                </div>
+                <div className="w-16 text-right shrink-0 hidden sm:block">
+                  {c.country && <span className="text-xs text-gray-400 dark:text-gray-500">{c.country}</span>}
+                </div>
+              </a>
+            );
+          })}
         </div>
       </div>
     );
