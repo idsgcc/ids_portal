@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const PO_SELECT = "id, po_number, supplier_name, description, amount, currency, status, issued_date, notes, created_at";
+const PO_SELECT = "id, po_number, party_type, contractor_id, supplier_id, supplier_name, description, amount, currency, status, issued_date, notes, created_at, contractor:contractors!contractor_id(id,name), supplier:suppliers!supplier_id(id,name)";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,16 +17,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const { po_number, supplier_name, description, amount, currency, status, issued_date, notes } = body;
-  if (!po_number || !supplier_name) {
-    return NextResponse.json({ error: "po_number and supplier_name required" }, { status: 400 });
+  const { party_type, contractor_id, supplier_id, po_number, description, amount, currency, status, issued_date, notes } = body;
+  if (!po_number || !party_type) {
+    return NextResponse.json({ error: "po_number and party_type required" }, { status: 400 });
   }
   const { data, error } = await supabaseAdmin
     .from("purchase_orders")
     .insert({
       project_id: id,
+      party_type: party_type || "supplier",
+      contractor_id: contractor_id || null,
+      supplier_id: supplier_id || null,
+      supplier_name: null,
       po_number,
-      supplier_name,
       description: description || null,
       amount: amount != null && amount !== "" ? Number(amount) : null,
       currency: currency || "USD",

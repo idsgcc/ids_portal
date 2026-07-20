@@ -30,10 +30,17 @@ type Project = {
   project_plans: Plan[];
 };
 type Profile = { id: string; full_name: string };
+type Contractor = { id: string; name: string };
+type SupplierEntity = { id: string; name: string };
 type PO = {
   id: string;
   po_number: string;
-  supplier_name: string;
+  party_type: "client" | "supplier";
+  contractor_id: string | null;
+  supplier_id: string | null;
+  contractor: { id: string; name: string } | null;
+  supplier: { id: string; name: string } | null;
+  supplier_name: string | null;
   description: string | null;
   amount: number | null;
   currency: string;
@@ -45,7 +52,12 @@ type PO = {
 type Invoice = {
   id: string;
   invoice_number: string;
-  supplier_name: string;
+  party_type: "client" | "supplier";
+  contractor_id: string | null;
+  supplier_id: string | null;
+  contractor: { id: string; name: string } | null;
+  supplier: { id: string; name: string } | null;
+  supplier_name: string | null;
   purchase_order_id: string | null;
   amount: number | null;
   currency: string;
@@ -57,8 +69,8 @@ type Invoice = {
   created_at: string;
 };
 
-const EMPTY_PO = { po_number: "", supplier_name: "", description: "", amount: "", currency: "USD", status: "draft", issued_date: "", notes: "" };
-const EMPTY_INV = { invoice_number: "", supplier_name: "", purchase_order_id: "", amount: "", currency: "USD", status: "pending", invoice_date: "", due_date: "", notes: "" };
+const EMPTY_PO = { po_number: "", party_id: "", description: "", amount: "", currency: "AED", status: "draft", issued_date: "", notes: "" };
+const EMPTY_INV = { invoice_number: "", party_id: "", purchase_order_id: "", amount: "", currency: "AED", status: "pending", invoice_date: "", due_date: "", notes: "" };
 
 const TASK_STATUSES = [
   { value: "not_started", label: "Not Started", color: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" },
@@ -194,12 +206,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   // Financials
   const [pos, setPos] = useState<PO[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [showAddPO, setShowAddPO] = useState(false);
+  const [addingPO, setAddingPO] = useState<"client" | "supplier" | null>(null);
   const [addPOForm, setAddPOForm] = useState(EMPTY_PO);
   const [savingPO, setSavingPO] = useState(false);
-  const [showAddInvoice, setShowAddInvoice] = useState(false);
+  const [addingInvoice, setAddingInvoice] = useState<"client" | "supplier" | null>(null);
   const [addInvoiceForm, setAddInvoiceForm] = useState(EMPTY_INV);
   const [savingInvoice, setSavingInvoice] = useState(false);
+  const [contractorsList, setContractorsList] = useState<Contractor[]>([]);
+  const [suppliersList, setSuppliersList] = useState<SupplierEntity[]>([]);
+
+  // Edit financials
+  const [editingPO, setEditingPO] = useState<PO | null>(null);
+  const [editPOForm, setEditPOForm] = useState({ ...EMPTY_PO });
+  const [savingEditPO, setSavingEditPO] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [editInvoiceForm, setEditInvoiceForm] = useState({ ...EMPTY_INV });
+  const [savingEditInvoice, setSavingEditInvoice] = useState(false);
 
   useEffect(() => {
     if (insertState) setTimeout(() => insertInputRef.current?.focus(), 50);
@@ -224,12 +246,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setUserRole(role);
 
     if (role === "admin") {
-      const [posRes, invRes] = await Promise.all([
+      const [posRes, invRes, contractorsRes, suppliersRes] = await Promise.all([
         fetch(`/api/projects/${id}/purchase-orders`),
         fetch(`/api/projects/${id}/invoices`),
+        fetch("/api/contractors"),
+        fetch("/api/suppliers"),
       ]);
       setPos(await posRes.json());
       setInvoices(await invRes.json());
+      const allContractors = await contractorsRes.json();
+      setContractorsList(allContractors.map((c: Contractor) => ({ id: c.id, name: c.name })));
+      const allSuppliers = await suppliersRes.json();
+      setSuppliersList(allSuppliers.map((s: SupplierEntity) => ({ id: s.id, name: s.name })));
     }
   }
 
@@ -394,17 +422,28 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // PO actions
   async function savePO() {
-    if (!addPOForm.po_number.trim() || !addPOForm.supplier_name.trim()) return;
+    if (!addPOForm.po_number.trim() || !addPOForm.party_id || !addingPO) return;
     setSavingPO(true);
+    const body = {
+      party_type: addingPO,
+      ...(addingPO === "client" ? { contractor_id: addPOForm.party_id } : { supplier_id: addPOForm.party_id }),
+      po_number: addPOForm.po_number,
+      description: addPOForm.description || null,
+      amount: addPOForm.amount !== "" ? Number(addPOForm.amount) : null,
+      currency: addPOForm.currency,
+      status: addPOForm.status,
+      issued_date: addPOForm.issued_date || null,
+      notes: addPOForm.notes || null,
+    };
     const res = await fetch(`/api/projects/${id}/purchase-orders`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...addPOForm, amount: addPOForm.amount !== "" ? Number(addPOForm.amount) : null }),
+      body: JSON.stringify(body),
     });
     const po = await res.json();
     setPos((prev) => [po, ...prev]);
     setAddPOForm(EMPTY_PO);
-    setShowAddPO(false);
+    setAddingPO(null);
     setSavingPO(false);
   }
 
@@ -424,17 +463,35 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   // Invoice actions
   async function saveInvoice() {
-    if (!addInvoiceForm.invoice_number.trim() || !addInvoiceForm.supplier_name.trim()) return;
+    if (!addInvoiceForm.invoice_number.trim() || !addingInvoice) return;
+    let partyId = addInvoiceForm.party_id;
+    if (!partyId && addInvoiceForm.purchase_order_id) {
+      const linkedPO = pos.find((p) => p.id === addInvoiceForm.purchase_order_id);
+      partyId = (addingInvoice === "client" ? linkedPO?.contractor_id : linkedPO?.supplier_id) ?? "";
+    }
+    if (!partyId) return;
     setSavingInvoice(true);
+    const body = {
+      party_type: addingInvoice,
+      ...(addingInvoice === "client" ? { contractor_id: partyId } : { supplier_id: partyId }),
+      invoice_number: addInvoiceForm.invoice_number,
+      purchase_order_id: addInvoiceForm.purchase_order_id || null,
+      amount: addInvoiceForm.amount !== "" ? Number(addInvoiceForm.amount) : null,
+      currency: addInvoiceForm.currency,
+      status: addInvoiceForm.status,
+      invoice_date: addInvoiceForm.invoice_date || null,
+      due_date: addInvoiceForm.due_date || null,
+      notes: addInvoiceForm.notes || null,
+    };
     const res = await fetch(`/api/projects/${id}/invoices`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...addInvoiceForm, amount: addInvoiceForm.amount !== "" ? Number(addInvoiceForm.amount) : null }),
+      body: JSON.stringify(body),
     });
     const inv = await res.json();
     setInvoices((prev) => [inv, ...prev]);
     setAddInvoiceForm(EMPTY_INV);
-    setShowAddInvoice(false);
+    setAddingInvoice(null);
     setSavingInvoice(false);
   }
 
@@ -450,6 +507,119 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+  }
+
+  function openEditPO(po: PO) {
+    setEditingPO(po);
+    setEditPOForm({
+      po_number: po.po_number,
+      party_id: po.party_type === "client" ? (po.contractor_id ?? "") : (po.supplier_id ?? ""),
+      description: po.description ?? "",
+      amount: po.amount?.toString() ?? "",
+      currency: po.currency,
+      status: po.status,
+      issued_date: po.issued_date ?? "",
+      notes: po.notes ?? "",
+    });
+  }
+
+  async function saveEditPO() {
+    if (!editingPO || !editPOForm.po_number.trim() || !editPOForm.party_id) return;
+    setSavingEditPO(true);
+    const body: Record<string, unknown> = {
+      po_number: editPOForm.po_number,
+      description: editPOForm.description || null,
+      amount: editPOForm.amount !== "" ? Number(editPOForm.amount) : null,
+      currency: editPOForm.currency,
+      status: editPOForm.status,
+      issued_date: editPOForm.issued_date || null,
+    };
+    if (editingPO.party_type === "client") body.contractor_id = editPOForm.party_id;
+    else body.supplier_id = editPOForm.party_id;
+    await fetch(`/api/projects/${id}/purchase-orders/${editingPO.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const party = (editingPO.party_type === "client" ? contractorsList : suppliersList).find((c) => c.id === editPOForm.party_id);
+    setPos((prev) => prev.map((p) => {
+      if (p.id !== editingPO.id) return p;
+      return {
+        ...p,
+        po_number: editPOForm.po_number,
+        ...(editingPO.party_type === "client"
+          ? { contractor_id: editPOForm.party_id, contractor: party ? { id: party.id, name: party.name } : p.contractor }
+          : { supplier_id: editPOForm.party_id, supplier: party ? { id: party.id, name: party.name } : p.supplier }),
+        description: editPOForm.description || null,
+        amount: editPOForm.amount !== "" ? Number(editPOForm.amount) : null,
+        currency: editPOForm.currency,
+        status: editPOForm.status,
+        issued_date: editPOForm.issued_date || null,
+      };
+    }));
+    setEditingPO(null);
+    setSavingEditPO(false);
+  }
+
+  function openEditInvoice(inv: Invoice) {
+    setEditingInvoice(inv);
+    setEditInvoiceForm({
+      invoice_number: inv.invoice_number,
+      party_id: inv.party_type === "client" ? (inv.contractor_id ?? "") : (inv.supplier_id ?? ""),
+      purchase_order_id: inv.purchase_order_id ?? "",
+      amount: inv.amount?.toString() ?? "",
+      currency: inv.currency,
+      status: inv.status,
+      invoice_date: inv.invoice_date ?? "",
+      due_date: inv.due_date ?? "",
+      notes: inv.notes ?? "",
+    });
+  }
+
+  async function saveEditInvoice() {
+    if (!editingInvoice || !editInvoiceForm.invoice_number.trim()) return;
+    let partyId = editInvoiceForm.party_id;
+    if (!partyId && editInvoiceForm.purchase_order_id) {
+      const linkedPO = pos.find((p) => p.id === editInvoiceForm.purchase_order_id);
+      partyId = (editingInvoice.party_type === "client" ? linkedPO?.contractor_id : linkedPO?.supplier_id) ?? "";
+    }
+    if (!partyId) return;
+    setSavingEditInvoice(true);
+    const body: Record<string, unknown> = {
+      invoice_number: editInvoiceForm.invoice_number,
+      purchase_order_id: editInvoiceForm.purchase_order_id || null,
+      amount: editInvoiceForm.amount !== "" ? Number(editInvoiceForm.amount) : null,
+      currency: editInvoiceForm.currency,
+      status: editInvoiceForm.status,
+      invoice_date: editInvoiceForm.invoice_date || null,
+      due_date: editInvoiceForm.due_date || null,
+    };
+    if (editingInvoice.party_type === "client") body.contractor_id = partyId;
+    else body.supplier_id = partyId;
+    await fetch(`/api/projects/${id}/invoices/${editingInvoice.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const party = (editingInvoice.party_type === "client" ? contractorsList : suppliersList).find((c) => c.id === partyId);
+    setInvoices((prev) => prev.map((inv) => {
+      if (inv.id !== editingInvoice.id) return inv;
+      return {
+        ...inv,
+        invoice_number: editInvoiceForm.invoice_number,
+        ...(editingInvoice.party_type === "client"
+          ? { contractor_id: partyId, contractor: party ? { id: party.id, name: party.name } : inv.contractor }
+          : { supplier_id: partyId, supplier: party ? { id: party.id, name: party.name } : inv.supplier }),
+        purchase_order_id: editInvoiceForm.purchase_order_id || null,
+        amount: editInvoiceForm.amount !== "" ? Number(editInvoiceForm.amount) : null,
+        currency: editInvoiceForm.currency,
+        status: editInvoiceForm.status,
+        invoice_date: editInvoiceForm.invoice_date || null,
+        due_date: editInvoiceForm.due_date || null,
+      };
+    }));
+    setEditingInvoice(null);
+    setSavingEditInvoice(false);
   }
 
   if (loading) return <main className="min-h-screen p-8"><p className="text-gray-400 text-sm">Loading…</p></main>;
@@ -606,7 +776,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             setInsertState(null);
                           }}
                           onDragEnd={isReadOnly ? undefined : () => { setDraggedId(null); setDragOverId(null); }}
-                          className={`flex items-center justify-center ${isReadOnly ? "invisible" : "text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing"}`}
+                          className={`flex items-center justify-center min-w-0 ${isReadOnly ? "invisible" : "text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing"}`}
                         >
                           <GripIcon />
                         </div>
@@ -627,27 +797,29 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                         {/* Task name */}
                         <span
-                          className={`text-sm font-medium ${!isReadOnly ? "cursor-pointer" : ""}`}
+                          className={`text-sm font-medium min-w-0 truncate ${!isReadOnly ? "cursor-pointer" : ""}`}
                           onClick={() => { if (isReadOnly) return; setEditingTask(editingTask === task.id ? null : task.id); }}
+                          title={task.name}
                         >
                           {task.name}
                         </span>
 
                         {/* Duration */}
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 min-w-0">
                           {task.template_task?.duration_days != null ? `${task.template_task.duration_days}d` : "—"}
                         </span>
 
                         {/* Planned dates */}
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 min-w-0 truncate">
                           {task.planned_start && task.planned_finish
                             ? `${fmtDate(task.planned_start)} → ${fmtDate(task.planned_finish)}`
+                            : task.planned_finish ? `→ ${fmtDate(task.planned_finish)}`
                             : task.planned_start ? fmtDate(task.planned_start)
                             : <span className="text-gray-300 dark:text-gray-600">Not set</span>}
                         </span>
 
                         {/* Actual dates */}
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 min-w-0 truncate">
                           {task.actual_start && task.actual_finish
                             ? `${fmtDate(task.actual_start)} → ${fmtDate(task.actual_finish)}`
                             : task.actual_start ? fmtDate(task.actual_start)
@@ -830,103 +1002,151 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         {/* Financials — admin only */}
         {userRole === "admin" && (
           <section className="mt-12">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6">Financials</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-8">Financials</h2>
 
-            {/* Purchase Orders */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Purchase Orders</h3>
-                <button
-                  onClick={() => { setAddPOForm(EMPTY_PO); setShowAddPO(true); }}
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
-                >
-                  + Add PO
-                </button>
-              </div>
+            {/* CLIENT */}
+            <div className="mb-10">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-5 pb-2 border-b border-gray-200 dark:border-gray-800">Client</h3>
 
-              <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_1.5fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
-                  {["PO #", "Supplier", "Description", "Amount", "Status", "Issued", ""].map((h) => (
-                    <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
+              {/* Client POs */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Purchase Orders</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">received from client</span>
+                  </div>
+                  <button onClick={() => { setAddPOForm(EMPTY_PO); setAddingPO("client"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive PO</button>
+                </div>
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                    {["PO #", "Client", "Description", "Amount", "Status", "Issued", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
+                  </div>
+                  {pos.filter((p) => p.party_type === "client").length === 0 ? (
+                    <p className="text-xs text-gray-400 px-4 py-4">No client purchase orders yet.</p>
+                  ) : pos.filter((p) => p.party_type === "client").map((po, i, arr) => (
+                    <div key={po.id} className={`grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                      <span className="text-sm font-medium min-w-0 truncate">{po.po_number}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{po.contractor?.name ?? po.supplier_name ?? "—"}</span>
+                      <span className="text-xs text-gray-500 min-w-0 truncate">{po.description ?? "—"}</span>
+                      <span className="text-sm min-w-0">{fmtAmount(po.amount, po.currency)}</span>
+                      <button onClick={() => updatePOStatus(po.id, nextStatus(PO_STATUSES, po.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(PO_STATUSES, po.status)}`}>{PO_STATUSES.find((s) => s.value === po.status)?.label ?? po.status}</button>
+                      <span className="text-xs text-gray-500">{po.issued_date ? fmtDate(po.issued_date) : "—"}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEditPO(po)} className="text-xs text-gray-400 hover:text-blue-500 transition-colors px-1" title="Edit">✏</button>
+                        <button onClick={() => deletePO(po.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1" title="Delete">✕</button>
+                      </div>
+                    </div>
                   ))}
                 </div>
-                {pos.length === 0 ? (
-                  <p className="text-xs text-gray-400 px-4 py-4">No purchase orders yet.</p>
-                ) : (
-                  pos.map((po, i) => (
-                    <div key={po.id} className={`grid grid-cols-[1fr_1fr_1.5fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < pos.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
-                      <span className="text-sm font-medium">{po.po_number}</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{po.supplier_name}</span>
-                      <span className="text-xs text-gray-500 truncate">{po.description ?? "—"}</span>
-                      <span className="text-sm">{fmtAmount(po.amount, po.currency)}</span>
-                      <button
-                        onClick={() => updatePOStatus(po.id, nextStatus(PO_STATUSES, po.status))}
-                        className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(PO_STATUSES, po.status)}`}
-                      >
-                        {PO_STATUSES.find((s) => s.value === po.status)?.label ?? po.status}
-                      </button>
-                      <span className="text-xs text-gray-500">{po.issued_date ? fmtDate(po.issued_date) : "—"}</span>
-                      <button
-                        onClick={() => deletePO(po.id)}
-                        className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
-                        title="Delete PO"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))
-                )}
+              </div>
+
+              {/* Client Invoices */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Invoices</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">issued to client</span>
+                  </div>
+                  <button onClick={() => { setAddInvoiceForm(EMPTY_INV); setAddingInvoice("client"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Issue Invoice</button>
+                </div>
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                    {["Invoice #", "Client", "Linked PO", "Amount", "Status", "Inv. Date", "Due Date", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
+                  </div>
+                  {invoices.filter((inv) => inv.party_type === "client").length === 0 ? (
+                    <p className="text-xs text-gray-400 px-4 py-4">No client invoices yet.</p>
+                  ) : invoices.filter((inv) => inv.party_type === "client").map((inv, i, arr) => {
+                    const linkedPO = inv.purchase_order_id ? pos.find((p) => p.id === inv.purchase_order_id) : null;
+                    return (
+                      <div key={inv.id} className={`grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                        <span className="text-sm font-medium min-w-0 truncate">{inv.invoice_number}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{inv.contractor?.name ?? inv.supplier_name ?? "—"}</span>
+                        <span className="text-xs text-gray-500 min-w-0 truncate">{linkedPO ? linkedPO.po_number : "—"}</span>
+                        <span className="text-sm min-w-0">{fmtAmount(inv.amount, inv.currency)}</span>
+                        <button onClick={() => updateInvoiceStatus(inv.id, nextStatus(INV_STATUSES, inv.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(INV_STATUSES, inv.status)}`}>{INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}</button>
+                        <span className="text-xs text-gray-500">{inv.invoice_date ? fmtDate(inv.invoice_date) : "—"}</span>
+                        <span className="text-xs text-gray-500">{inv.due_date ? fmtDate(inv.due_date) : "—"}</span>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-400 hover:text-blue-500 transition-colors px-1" title="Edit">✏</button>
+                          <button onClick={() => deleteInvoice(inv.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1" title="Delete">✕</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Invoices */}
+            {/* SUPPLIER */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Invoices</h3>
-                <button
-                  onClick={() => { setAddInvoiceForm(EMPTY_INV); setShowAddInvoice(true); }}
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
-                >
-                  + Add Invoice
-                </button>
-              </div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-5 pb-2 border-b border-gray-200 dark:border-gray-800">Supplier</h3>
 
-              <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
-                  {["Invoice #", "Supplier", "Linked PO", "Amount", "Status", "Invoice Date", "Due Date", ""].map((h) => (
-                    <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
+              {/* Supplier POs */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Purchase Orders</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">issued to supplier</span>
+                  </div>
+                  <button onClick={() => { setAddPOForm(EMPTY_PO); setAddingPO("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Issue PO</button>
+                </div>
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                    {["PO #", "Supplier", "Description", "Amount", "Status", "Issued", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
+                  </div>
+                  {pos.filter((p) => p.party_type === "supplier").length === 0 ? (
+                    <p className="text-xs text-gray-400 px-4 py-4">No supplier purchase orders yet.</p>
+                  ) : pos.filter((p) => p.party_type === "supplier").map((po, i, arr) => (
+                    <div key={po.id} className={`grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                      <span className="text-sm font-medium min-w-0 truncate">{po.po_number}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{po.supplier?.name ?? po.supplier_name ?? "—"}</span>
+                      <span className="text-xs text-gray-500 min-w-0 truncate">{po.description ?? "—"}</span>
+                      <span className="text-sm min-w-0">{fmtAmount(po.amount, po.currency)}</span>
+                      <button onClick={() => updatePOStatus(po.id, nextStatus(PO_STATUSES, po.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(PO_STATUSES, po.status)}`}>{PO_STATUSES.find((s) => s.value === po.status)?.label ?? po.status}</button>
+                      <span className="text-xs text-gray-500">{po.issued_date ? fmtDate(po.issued_date) : "—"}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEditPO(po)} className="text-xs text-gray-400 hover:text-blue-500 transition-colors px-1" title="Edit">✏</button>
+                        <button onClick={() => deletePO(po.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1" title="Delete">✕</button>
+                      </div>
+                    </div>
                   ))}
                 </div>
-                {invoices.length === 0 ? (
-                  <p className="text-xs text-gray-400 px-4 py-4">No invoices yet.</p>
-                ) : (
-                  invoices.map((inv, i) => {
+              </div>
+
+              {/* Supplier Invoices */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Invoices</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">received from supplier</span>
+                  </div>
+                  <button onClick={() => { setAddInvoiceForm(EMPTY_INV); setAddingInvoice("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive Invoice</button>
+                </div>
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                    {["Invoice #", "Supplier", "Linked PO", "Amount", "Status", "Inv. Date", "Due Date", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
+                  </div>
+                  {invoices.filter((inv) => inv.party_type === "supplier").length === 0 ? (
+                    <p className="text-xs text-gray-400 px-4 py-4">No supplier invoices yet.</p>
+                  ) : invoices.filter((inv) => inv.party_type === "supplier").map((inv, i, arr) => {
                     const linkedPO = inv.purchase_order_id ? pos.find((p) => p.id === inv.purchase_order_id) : null;
                     return (
-                      <div key={inv.id} className={`grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < invoices.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
-                        <span className="text-sm font-medium">{inv.invoice_number}</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{inv.supplier_name}</span>
-                        <span className="text-xs text-gray-500">{linkedPO ? linkedPO.po_number : "—"}</span>
-                        <span className="text-sm">{fmtAmount(inv.amount, inv.currency)}</span>
-                        <button
-                          onClick={() => updateInvoiceStatus(inv.id, nextStatus(INV_STATUSES, inv.status))}
-                          className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(INV_STATUSES, inv.status)}`}
-                        >
-                          {INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}
-                        </button>
+                      <div key={inv.id} className={`grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                        <span className="text-sm font-medium min-w-0 truncate">{inv.invoice_number}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{inv.supplier?.name ?? inv.supplier_name ?? "—"}</span>
+                        <span className="text-xs text-gray-500 min-w-0 truncate">{linkedPO ? linkedPO.po_number : "—"}</span>
+                        <span className="text-sm min-w-0">{fmtAmount(inv.amount, inv.currency)}</span>
+                        <button onClick={() => updateInvoiceStatus(inv.id, nextStatus(INV_STATUSES, inv.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(INV_STATUSES, inv.status)}`}>{INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}</button>
                         <span className="text-xs text-gray-500">{inv.invoice_date ? fmtDate(inv.invoice_date) : "—"}</span>
                         <span className="text-xs text-gray-500">{inv.due_date ? fmtDate(inv.due_date) : "—"}</span>
-                        <button
-                          onClick={() => deleteInvoice(inv.id)}
-                          className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
-                          title="Delete invoice"
-                        >
-                          ✕
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-400 hover:text-blue-500 transition-colors px-1" title="Edit">✏</button>
+                          <button onClick={() => deleteInvoice(inv.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1" title="Delete">✕</button>
+                        </div>
                       </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </div>
             </div>
           </section>
@@ -934,10 +1154,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Add PO Modal */}
-      {showAddPO && (
+      {addingPO && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-lg">
-            <h2 className="text-lg font-semibold mb-5">New Purchase Order</h2>
+            <h2 className="text-lg font-semibold mb-1">{addingPO === "client" ? "Receive Client PO" : "Issue Supplier PO"}</h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">{addingPO === "client" ? "Purchase order received from client" : "Purchase order issued to supplier"}</p>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -951,14 +1172,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Supplier *</label>
-                  <input
-                    type="text"
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{addingPO === "client" ? "Client *" : "Supplier *"}</label>
+                  <select
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                    placeholder="Supplier name"
-                    value={addPOForm.supplier_name}
-                    onChange={(e) => setAddPOForm({ ...addPOForm, supplier_name: e.target.value })}
-                  />
+                    value={addPOForm.party_id}
+                    onChange={(e) => setAddPOForm({ ...addPOForm, party_id: e.target.value })}
+                  >
+                    <option value="">— Select —</option>
+                    {(addingPO === "client" ? contractorsList : suppliersList).map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div>
@@ -989,10 +1213,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     value={addPOForm.currency}
                     onChange={(e) => setAddPOForm({ ...addPOForm, currency: e.target.value })}
                   >
+                    <option value="AED">AED</option>
                     <option value="USD">USD</option>
                     <option value="OMR">OMR</option>
                     <option value="EUR">EUR</option>
-                    <option value="AED">AED</option>
                   </select>
                 </div>
                 <div>
@@ -1019,12 +1243,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex gap-3 mt-6">
               <button
                 onClick={savePO}
-                disabled={savingPO || !addPOForm.po_number.trim() || !addPOForm.supplier_name.trim()}
+                disabled={savingPO || !addPOForm.po_number.trim() || !addPOForm.party_id}
                 className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
               >
                 {savingPO ? "Saving…" : "Save PO"}
               </button>
-              <button onClick={() => setShowAddPO(false)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
+              <button onClick={() => setAddingPO(null)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
                 Cancel
               </button>
             </div>
@@ -1033,46 +1257,61 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Add Invoice Modal */}
-      {showAddInvoice && (
+      {addingInvoice && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-lg">
-            <h2 className="text-lg font-semibold mb-5">New Invoice</h2>
+            <h2 className="text-lg font-semibold mb-1">{addingInvoice === "client" ? "Issue Client Invoice" : "Receive Supplier Invoice"}</h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">{addingInvoice === "client" ? "Invoice issued to client" : "Invoice received from supplier"}</p>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Invoice Number *</label>
-                  <input
-                    type="text"
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                    placeholder="INV-2026-001"
-                    value={addInvoiceForm.invoice_number}
-                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, invoice_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Supplier *</label>
-                  <input
-                    type="text"
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                    placeholder="Supplier name"
-                    value={addInvoiceForm.supplier_name}
-                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, supplier_name: e.target.value })}
-                  />
-                </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Invoice Number *</label>
+                <input
+                  type="text"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  placeholder="INV-2026-001"
+                  value={addInvoiceForm.invoice_number}
+                  onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, invoice_number: e.target.value })}
+                />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Linked PO</label>
                 <select
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                   value={addInvoiceForm.purchase_order_id}
-                  onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, purchase_order_id: e.target.value })}
+                  onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, purchase_order_id: e.target.value, party_id: "" })}
                 >
                   <option value="">— None —</option>
-                  {pos.map((po) => (
-                    <option key={po.id} value={po.id}>{po.po_number} · {po.supplier_name}</option>
-                  ))}
+                  {pos.filter((po) => po.party_type === addingInvoice).map((po) => {
+                    const partyName = po.contractor?.name ?? po.supplier?.name ?? po.supplier_name ?? "";
+                    return <option key={po.id} value={po.id}>{po.po_number}{partyName ? ` · ${partyName}` : ""}</option>;
+                  })}
                 </select>
               </div>
+              {addInvoiceForm.purchase_order_id ? (
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{addingInvoice === "client" ? "Client" : "Supplier"}</label>
+                  <div className="w-full bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                    {(() => {
+                      const po = pos.find((p) => p.id === addInvoiceForm.purchase_order_id);
+                      return po?.contractor?.name ?? po?.supplier?.name ?? po?.supplier_name ?? "—";
+                    })()} <span className="text-xs">(from linked PO)</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{addingInvoice === "client" ? "Client *" : "Supplier *"}</label>
+                  <select
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={addInvoiceForm.party_id}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, party_id: e.target.value })}
+                  >
+                    <option value="">— Select —</option>
+                    {(addingInvoice === "client" ? contractorsList : suppliersList).map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Amount</label>
@@ -1091,10 +1330,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     value={addInvoiceForm.currency}
                     onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, currency: e.target.value })}
                   >
+                    <option value="AED">AED</option>
                     <option value="USD">USD</option>
                     <option value="OMR">OMR</option>
                     <option value="EUR">EUR</option>
-                    <option value="AED">AED</option>
                   </select>
                 </div>
                 <div>
@@ -1132,14 +1371,155 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex gap-3 mt-6">
               <button
                 onClick={saveInvoice}
-                disabled={savingInvoice || !addInvoiceForm.invoice_number.trim() || !addInvoiceForm.supplier_name.trim()}
+                disabled={savingInvoice || !addInvoiceForm.invoice_number.trim() || (!addInvoiceForm.party_id && !addInvoiceForm.purchase_order_id)}
                 className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
               >
                 {savingInvoice ? "Saving…" : "Save Invoice"}
               </button>
-              <button onClick={() => setShowAddInvoice(false)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
+              <button onClick={() => setAddingInvoice(null)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit PO Modal */}
+      {editingPO && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-lg">
+            <h2 className="text-lg font-semibold mb-1">Edit Purchase Order</h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">{editingPO.party_type === "client" ? "Received from client" : "Issued to supplier"}</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">PO Number *</label>
+                  <input type="text" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editPOForm.po_number} onChange={(e) => setEditPOForm({ ...editPOForm, po_number: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{editingPO.party_type === "client" ? "Client *" : "Supplier *"}</label>
+                  <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editPOForm.party_id} onChange={(e) => setEditPOForm({ ...editPOForm, party_id: e.target.value })}>
+                    <option value="">— Select —</option>
+                    {(editingPO.party_type === "client" ? contractorsList : suppliersList).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Description</label>
+                <input type="text" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editPOForm.description} onChange={(e) => setEditPOForm({ ...editPOForm, description: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+                  <input type="number" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editPOForm.amount} onChange={(e) => setEditPOForm({ ...editPOForm, amount: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Currency</label>
+                  <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editPOForm.currency} onChange={(e) => setEditPOForm({ ...editPOForm, currency: e.target.value })}>
+                    <option value="AED">AED</option>
+                    <option value="USD">USD</option>
+                    <option value="OMR">OMR</option>
+                    <option value="EUR">EUR</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                  <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editPOForm.status} onChange={(e) => setEditPOForm({ ...editPOForm, status: e.target.value })}>
+                    {PO_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Issued Date</label>
+                <input type="date" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editPOForm.issued_date} onChange={(e) => setEditPOForm({ ...editPOForm, issued_date: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={saveEditPO} disabled={savingEditPO || !editPOForm.po_number.trim() || !editPOForm.party_id} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
+                {savingEditPO ? "Saving…" : "Save Changes"}
+              </button>
+              <button onClick={() => setEditingPO(null)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invoice Modal */}
+      {editingInvoice && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-lg">
+            <h2 className="text-lg font-semibold mb-1">Edit Invoice</h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">{editingInvoice.party_type === "client" ? "Issued to client" : "Received from supplier"}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Invoice Number *</label>
+                <input type="text" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.invoice_number} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, invoice_number: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Linked PO</label>
+                <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.purchase_order_id} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, purchase_order_id: e.target.value, party_id: "" })}>
+                  <option value="">— None —</option>
+                  {pos.filter((po) => po.party_type === editingInvoice.party_type).map((po) => {
+                    const partyName = po.contractor?.name ?? po.supplier?.name ?? po.supplier_name ?? "";
+                    return <option key={po.id} value={po.id}>{po.po_number}{partyName ? ` · ${partyName}` : ""}</option>;
+                  })}
+                </select>
+              </div>
+              {editInvoiceForm.purchase_order_id ? (
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{editingInvoice.party_type === "client" ? "Client" : "Supplier"}</label>
+                  <div className="w-full bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                    {(() => {
+                      const po = pos.find((p) => p.id === editInvoiceForm.purchase_order_id);
+                      return po?.contractor?.name ?? po?.supplier?.name ?? po?.supplier_name ?? "—";
+                    })()} <span className="text-xs">(from linked PO)</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{editingInvoice.party_type === "client" ? "Client *" : "Supplier *"}</label>
+                  <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.party_id} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, party_id: e.target.value })}>
+                    <option value="">— Select —</option>
+                    {(editingInvoice.party_type === "client" ? contractorsList : suppliersList).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+                  <input type="number" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.amount} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, amount: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Currency</label>
+                  <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.currency} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, currency: e.target.value })}>
+                    <option value="AED">AED</option>
+                    <option value="USD">USD</option>
+                    <option value="OMR">OMR</option>
+                    <option value="EUR">EUR</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                  <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.status} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, status: e.target.value })}>
+                    {INV_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Invoice Date</label>
+                  <input type="date" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.invoice_date} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, invoice_date: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Due Date</label>
+                  <input type="date" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.due_date} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, due_date: e.target.value })} />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={saveEditInvoice} disabled={savingEditInvoice || !editInvoiceForm.invoice_number.trim() || (!editInvoiceForm.party_id && !editInvoiceForm.purchase_order_id)} className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
+                {savingEditInvoice ? "Saving…" : "Save Changes"}
+              </button>
+              <button onClick={() => setEditingInvoice(null)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">Cancel</button>
             </div>
           </div>
         </div>

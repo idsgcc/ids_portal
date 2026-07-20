@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const ALLOWED = ["po_number", "supplier_name", "description", "amount", "currency", "status", "issued_date", "notes"];
+const ALLOWED = ["po_number", "party_type", "contractor_id", "supplier_id", "supplier_name", "description", "amount", "currency", "status", "issued_date", "notes"];
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string; poId: string }> }) {
   const { poId } = await params;
