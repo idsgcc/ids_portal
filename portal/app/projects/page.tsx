@@ -114,17 +114,21 @@ export default function ProjectsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormData>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
-    const [pRes, tRes, cRes] = await Promise.all([
+    const [pRes, tRes, cRes, meRes] = await Promise.all([
       fetch("/api/projects"),
       fetch("/api/templates"),
       fetch("/api/contractors"),
+      fetch("/api/me"),
     ]);
     setProjects(await pRes.json());
     setTemplates(await tRes.json());
     setContractors(await cRes.json());
+    const me = await meRes.json();
+    setUserRole(me.role ?? null);
     setLoading(false);
   }
 
@@ -161,6 +165,8 @@ export default function ProjectsPage() {
     load();
   }
 
+  const isReadOnly = userRole === "engineer";
+
   const grouped = GROUP_ORDER.map((group) => ({
     group,
     items: projects.filter((p) => lifecycleGroup(p.status) === group),
@@ -178,12 +184,14 @@ export default function ProjectsPage() {
             <h1 className="text-2xl font-bold">Projects</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Post-award project tracking</p>
           </div>
-          <button
-            onClick={() => { setForm({ ...EMPTY, template_id: templates[0]?.id ?? "" }); setShowForm(true); }}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
-          >
-            New Project
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={() => { setForm({ ...EMPTY, template_id: templates[0]?.id ?? "" }); setShowForm(true); }}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+            >
+              New Project
+            </button>
+          )}
         </div>
 
         {/* New project modal */}
@@ -309,28 +317,40 @@ export default function ProjectsPage() {
                         </a>
                         <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{p.client_name}</span>
                         <div>
-                          <select
-                            className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none ${statusStyle(p.status)}`}
-                            value={p.status}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => updateStatus(p.id, e.target.value)}
-                          >
-                            {PROJECT_STATUSES.map((s) => (
-                              <option key={s.value} value={s.value}>{s.label}</option>
-                            ))}
-                          </select>
+                          {isReadOnly ? (
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusStyle(p.status)}`}>
+                              {PROJECT_STATUSES.find((s) => s.value === p.status)?.label ?? p.status}
+                            </span>
+                          ) : (
+                            <select
+                              className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none ${statusStyle(p.status)}`}
+                              value={p.status}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => updateStatus(p.id, e.target.value)}
+                            >
+                              {PROJECT_STATUSES.map((s) => (
+                                <option key={s.value} value={s.value}>{s.label}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                         <div>
-                          <select
-                            className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none capitalize ${PRIORITY_STYLES[p.priority] ?? PRIORITY_STYLES.medium}`}
-                            value={p.priority}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => updatePriority(p.id, e.target.value)}
-                          >
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
-                          </select>
+                          {isReadOnly ? (
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${PRIORITY_STYLES[p.priority] ?? PRIORITY_STYLES.medium}`}>
+                              {p.priority}
+                            </span>
+                          ) : (
+                            <select
+                              className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none capitalize ${PRIORITY_STYLES[p.priority] ?? PRIORITY_STYLES.medium}`}
+                              value={p.priority}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => updatePriority(p.id, e.target.value)}
+                            >
+                              <option value="high">High</option>
+                              <option value="medium">Medium</option>
+                              <option value="low">Low</option>
+                            </select>
+                          )}
                         </div>
                         {/* Current Step */}
                         <div className="min-w-0">

@@ -455,6 +455,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   if (loading) return <main className="min-h-screen p-8"><p className="text-gray-400 text-sm">Loading…</p></main>;
   if (!project) return <main className="min-h-screen p-8"><p className="text-red-500 text-sm">Project not found.</p></main>;
 
+  const isReadOnly = userRole === "engineer";
   const phases = groupByPhase(tasks);
   const done = tasks.filter((t) => t.status === "completed").length;
   const pct = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
@@ -482,9 +483,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               />
             ) : (
               <h1
-                className="text-2xl font-bold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                onClick={() => { setNameValue(project.name); setEditingName(true); }}
-                title="Click to edit"
+                className={`text-2xl font-bold ${!isReadOnly ? "cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" : ""}`}
+                onClick={() => { if (isReadOnly) return; setNameValue(project.name); setEditingName(true); }}
+                title={isReadOnly ? undefined : "Click to edit"}
               >
                 {project.name}
               </h1>
@@ -501,9 +502,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 />
               ) : (
                 <span
-                  className="cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-                  onClick={() => { setClientNameValue(project.client_name); setEditingClientName(true); }}
-                  title="Click to edit"
+                  className={!isReadOnly ? "cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors" : ""}
+                  onClick={() => { if (isReadOnly) return; setClientNameValue(project.client_name); setEditingClientName(true); }}
+                  title={isReadOnly ? undefined : "Click to edit"}
                 >
                   {project.client_name}
                 </span>
@@ -512,24 +513,34 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               {project.awarded_date && ` · Awarded ${fmtDate(project.awarded_date)}`}
             </p>
             <div className="flex items-center gap-2 mt-3">
-              <select
-                className={`text-xs px-3 py-1.5 rounded-full font-medium border-0 cursor-pointer focus:outline-none ${projectStatusStyle(project.status)}`}
-                value={project.status}
-                onChange={(e) => updateProjectStatus(e.target.value)}
-              >
-                {PROJECT_STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-              <select
-                className="text-xs text-gray-400 capitalize bg-transparent border-0 cursor-pointer focus:outline-none hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                value={project.priority}
-                onChange={(e) => updateProjectPriority(e.target.value)}
-              >
-                <option value="high">High priority</option>
-                <option value="medium">Medium priority</option>
-                <option value="low">Low priority</option>
-              </select>
+              {isReadOnly ? (
+                <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${projectStatusStyle(project.status)}`}>
+                  {PROJECT_STATUSES.find((s) => s.value === project.status)?.label ?? project.status}
+                </span>
+              ) : (
+                <select
+                  className={`text-xs px-3 py-1.5 rounded-full font-medium border-0 cursor-pointer focus:outline-none ${projectStatusStyle(project.status)}`}
+                  value={project.status}
+                  onChange={(e) => updateProjectStatus(e.target.value)}
+                >
+                  {PROJECT_STATUSES.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              )}
+              {isReadOnly ? (
+                <span className="text-xs text-gray-400 capitalize">{project.priority} priority</span>
+              ) : (
+                <select
+                  className="text-xs text-gray-400 capitalize bg-transparent border-0 cursor-pointer focus:outline-none hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                  value={project.priority}
+                  onChange={(e) => updateProjectPriority(e.target.value)}
+                >
+                  <option value="high">High priority</option>
+                  <option value="medium">Medium priority</option>
+                  <option value="low">Low priority</option>
+                </select>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -587,31 +598,37 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       >
                         {/* Drag handle */}
                         <div
-                          draggable
-                          onDragStart={(e) => {
+                          draggable={!isReadOnly}
+                          onDragStart={isReadOnly ? undefined : (e) => {
                             e.dataTransfer.effectAllowed = "move";
                             setDraggedId(task.id);
                             setEditingTask(null);
                             setInsertState(null);
                           }}
-                          onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
-                          className="text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing flex items-center justify-center"
+                          onDragEnd={isReadOnly ? undefined : () => { setDraggedId(null); setDragOverId(null); }}
+                          className={`flex items-center justify-center ${isReadOnly ? "invisible" : "text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing"}`}
                         >
                           <GripIcon />
                         </div>
 
                         {/* Status badge */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); updateTask(task.id, { status: nextTaskStatus(task.status) }); }}
-                          className={`text-xs px-2.5 py-1 rounded-full font-medium text-left transition-opacity hover:opacity-75 w-fit ${taskStatusStyle(task.status)}`}
-                        >
-                          {taskStatusLabel(task.status)}
-                        </button>
+                        {isReadOnly ? (
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit ${taskStatusStyle(task.status)}`}>
+                            {taskStatusLabel(task.status)}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); updateTask(task.id, { status: nextTaskStatus(task.status) }); }}
+                            className={`text-xs px-2.5 py-1 rounded-full font-medium text-left transition-opacity hover:opacity-75 w-fit ${taskStatusStyle(task.status)}`}
+                          >
+                            {taskStatusLabel(task.status)}
+                          </button>
+                        )}
 
                         {/* Task name */}
                         <span
-                          className="text-sm font-medium cursor-pointer"
-                          onClick={() => setEditingTask(editingTask === task.id ? null : task.id)}
+                          className={`text-sm font-medium ${!isReadOnly ? "cursor-pointer" : ""}`}
+                          onClick={() => { if (isReadOnly) return; setEditingTask(editingTask === task.id ? null : task.id); }}
                         >
                           {task.name}
                         </span>
@@ -641,37 +658,36 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <div className="min-w-0">
                           {task.assigned_to_profile?.full_name ? (
                             <span
-                              className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium truncate block w-fit max-w-full cursor-pointer"
-                              onClick={() => setEditingTask(editingTask === task.id ? null : task.id)}
+                              className={`text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium truncate block w-fit max-w-full ${!isReadOnly ? "cursor-pointer" : ""}`}
+                              onClick={() => { if (isReadOnly) return; setEditingTask(editingTask === task.id ? null : task.id); }}
                               title={task.assigned_to_profile.full_name}
                             >
                               {task.assigned_to_profile.full_name.split(" ")[0]}
                             </span>
                           ) : (
-                            <span
-                              className="text-xs text-gray-300 dark:text-gray-600 cursor-pointer hover:text-gray-400 dark:hover:text-gray-500"
-                              onClick={() => setEditingTask(editingTask === task.id ? null : task.id)}
-                            >
-                              —
-                            </span>
+                            <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
                           )}
                         </div>
 
                         {/* Actions */}
                         <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setInsertState({ afterId: task.id, phase }); setInsertName(""); setEditingTask(null); }}
-                            title="Insert task below"
-                            className="opacity-0 group-hover/row:opacity-100 transition-opacity w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-bold"
-                          >
-                            +
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); sendReminder(task.id); }}
-                            className={`text-xs px-2 py-1 rounded-lg shrink-0 transition-colors ${reminderSent === task.id ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"}`}
-                          >
-                            {reminderSent === task.id ? "✓ Sent" : "Remind"}
-                          </button>
+                          {!isReadOnly && (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setInsertState({ afterId: task.id, phase }); setInsertName(""); setEditingTask(null); }}
+                                title="Insert task below"
+                                className="opacity-0 group-hover/row:opacity-100 transition-opacity w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-bold"
+                              >
+                                +
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); sendReminder(task.id); }}
+                                className={`text-xs px-2 py-1 rounded-lg shrink-0 transition-colors ${reminderSent === task.id ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"}`}
+                              >
+                                {reminderSent === task.id ? "✓ Sent" : "Remind"}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -736,7 +752,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       )}
 
                       {/* Inline insert form */}
-                      {insertState?.afterId === task.id && (
+                      {!isReadOnly && insertState?.afterId === task.id && (
                         <div className="border-t border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-900/10 px-4 py-2.5 flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
                           <input
@@ -769,7 +785,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   ))}
 
                   {/* Add task at end of phase */}
-                  {insertState?.afterId === null && insertState.phase === phase ? (
+                  {!isReadOnly && insertState?.afterId === null && insertState.phase === phase ? (
                     <div className="border-t border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-900/10 px-4 py-2.5 flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
                       <input
@@ -797,14 +813,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         ✕
                       </button>
                     </div>
-                  ) : (
+                  ) : !isReadOnly ? (
                     <button
                       className="w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors rounded-b-xl"
                       onClick={() => { setInsertState({ afterId: null, phase }); setInsertName(""); }}
                     >
                       + Add task
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </section>
             );
