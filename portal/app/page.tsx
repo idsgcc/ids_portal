@@ -72,19 +72,13 @@ export default async function Home() {
   let accessibleModules: string[] = [];
 
   if (user) {
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    const [{ data: profile }, { data: allPerms }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("role").eq("id", user.id).single(),
+      supabaseAdmin.from("module_permissions").select("role, module").eq("can_access", true),
+    ]);
 
     if (profile) {
-      const { data: perms } = await supabaseAdmin
-        .from("module_permissions")
-        .select("module, can_access")
-        .eq("role", profile.role);
-
-      accessibleModules = (perms ?? []).filter((p) => p.can_access).map((p) => p.module);
+      accessibleModules = (allPerms ?? []).filter((p) => p.role === profile.role).map((p) => p.module);
     }
   }
 

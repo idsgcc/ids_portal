@@ -26,22 +26,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let accessibleModules: string[] = [];
 
   if (user) {
-    const { data: p } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name, role")
-      .eq("id", user.id)
-      .single();
-
-    profile = p;
+    const [{ data: p }, { data: allPerms }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("full_name, role").eq("id", user.id).single(),
+      supabaseAdmin.from("module_permissions").select("role, module, can_access"),
+    ]);
 
     if (p) {
-      const { data: perms } = await supabaseAdmin
-        .from("module_permissions")
-        .select("module, can_access")
-        .eq("role", p.role);
-
-      accessibleModules = (perms ?? [])
-        .filter((x) => x.can_access)
+      profile = p;
+      accessibleModules = (allPerms ?? [])
+        .filter((x) => x.role === p.role && x.can_access)
         .map((x) => x.module);
     }
   }
