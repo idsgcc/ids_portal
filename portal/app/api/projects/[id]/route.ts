@@ -13,7 +13,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         id, name, status, started_date, template_id,
         project_tasks(
           id, name, phase, status, sort_order, planned_start, planned_finish,
-          actual_start, actual_finish, notes,
+          actual_start, actual_finish, notes, assigned_to_profile_id,
+          assigned_to_profile:profiles!assigned_to_profile_id(full_name),
           template_task:template_tasks(sequence_order, duration_days)
         )
       )

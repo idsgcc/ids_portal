@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; notes: string | null; sort_order: number | null; template_task: { sequence_order: number } | null };
+type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; notes: string | null; sort_order: number | null; assigned_to_profile: { full_name: string } | null; template_task: { sequence_order: number } | null };
 type Plan = { project_tasks: Task[] };
 type Project = {
   id: string;
@@ -58,7 +58,7 @@ function statusStyle(s: string) {
   return PROJECT_STATUSES.find((x) => x.value === s)?.color ?? PROJECT_STATUSES[0].color;
 }
 
-type StepInfo = { name: string; phase: string; planned_finish: string | null; notes: string | null; status: string };
+type StepInfo = { name: string; phase: string; planned_finish: string | null; notes: string | null; status: string; assignee: string | null };
 
 function sortedTasks(plans: Plan[]) {
   return [...plans.flatMap((p) => p.project_tasks ?? [])].sort(
@@ -76,8 +76,8 @@ function getSteps(plans: Plan[]): { current: StepInfo | null; next: StepInfo | n
     const curr = sorted[inProgressIdx];
     const nextTask = sorted.slice(inProgressIdx + 1).find((t) => t.status !== "completed") ?? null;
     return {
-      current: { name: curr.name, phase: curr.phase, planned_finish: curr.planned_finish, notes: curr.notes, status: curr.status },
-      next: nextTask ? { name: nextTask.name, phase: nextTask.phase, planned_finish: nextTask.planned_finish, notes: nextTask.notes, status: nextTask.status } : null,
+      current: { name: curr.name, phase: curr.phase, planned_finish: curr.planned_finish, notes: curr.notes, status: curr.status, assignee: curr.assigned_to_profile?.full_name ?? null },
+      next: nextTask ? { name: nextTask.name, phase: nextTask.phase, planned_finish: nextTask.planned_finish, notes: nextTask.notes, status: nextTask.status, assignee: nextTask.assigned_to_profile?.full_name ?? null } : null,
     };
   }
 
@@ -88,8 +88,8 @@ function getSteps(plans: Plan[]): { current: StepInfo | null; next: StepInfo | n
   const nextTask = sorted[nextIdx];
   const prevTask = nextIdx > 0 ? sorted[nextIdx - 1] : null;
   return {
-    current: prevTask ? { name: prevTask.name, phase: prevTask.phase, planned_finish: prevTask.planned_finish, notes: prevTask.notes, status: prevTask.status } : null,
-    next: { name: nextTask.name, phase: nextTask.phase, planned_finish: nextTask.planned_finish, notes: nextTask.notes, status: nextTask.status },
+    current: prevTask ? { name: prevTask.name, phase: prevTask.phase, planned_finish: prevTask.planned_finish, notes: prevTask.notes, status: prevTask.status, assignee: prevTask.assigned_to_profile?.full_name ?? null } : null,
+    next: { name: nextTask.name, phase: nextTask.phase, planned_finish: nextTask.planned_finish, notes: nextTask.notes, status: nextTask.status, assignee: nextTask.assigned_to_profile?.full_name ?? null },
   };
 }
 
@@ -287,7 +287,7 @@ export default function ProjectsPage() {
 
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   {/* Table header */}
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_1.5fr_1fr] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
                     {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", "Progress"].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
@@ -302,7 +302,7 @@ export default function ProjectsPage() {
                     return (
                       <div
                         key={p.id}
-                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_1.5fr_1fr] items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
+                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr] items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
                       >
                         <a href={`/projects/${p.id}`} className="font-medium text-sm hover:text-blue-600 dark:hover:text-blue-400 truncate">
                           {p.name}
@@ -337,21 +337,32 @@ export default function ProjectsPage() {
                           {current ? (
                             <div>
                               <span className="text-xs text-gray-700 dark:text-gray-200 font-medium truncate block">{current.name}</span>
-                              {current.notes && (
-                                <span className="text-xs text-gray-400 dark:text-gray-500 truncate block mt-0.5">{current.notes}</span>
-                              )}
-                              {current.planned_finish && dl && (
-                                <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded mt-0.5 ${dl === "overdue" ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"}`}>
-                                  {dl === "overdue" ? `Overdue · ${fmtShortDate(current.planned_finish)}` : `Due ${fmtShortDate(current.planned_finish)}`}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                {current.assignee && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium">
+                                    {current.assignee.split(" ")[0]}
+                                  </span>
+                                )}
+                                {current.planned_finish && dl && (
+                                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${dl === "overdue" ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"}`}>
+                                    {dl === "overdue" ? `Overdue · ${fmtShortDate(current.planned_finish)}` : `Due ${fmtShortDate(current.planned_finish)}`}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                         </div>
                         {/* Next Step */}
                         <div className="min-w-0">
                           {next ? (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate block">{next.name}</span>
+                            <div>
+                              <span className="text-xs text-gray-500 dark:text-gray-400 truncate block">{next.name}</span>
+                              {next.assignee && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium mt-0.5 inline-block">
+                                  {next.assignee.split(" ")[0]}
+                                </span>
+                              )}
+                            </div>
                           ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                         </div>
                         <div className="flex items-center gap-2">

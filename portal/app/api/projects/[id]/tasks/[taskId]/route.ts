@@ -7,7 +7,7 @@ export async function PATCH(
 ) {
   const { taskId } = await params;
   const body = await req.json();
-  const allowed = ["status", "name", "sort_order", "planned_start", "planned_finish", "actual_start", "actual_finish", "notes"];
+  const allowed = ["status", "name", "sort_order", "planned_start", "planned_finish", "actual_start", "actual_finish", "notes", "assigned_to_profile_id"];
   const update = Object.fromEntries(Object.entries(body).filter(([k]) => allowed.includes(k)));
 
   const { data, error } = await supabaseAdmin

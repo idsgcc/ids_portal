@@ -4,22 +4,22 @@ import { useState, useRef, useEffect } from "react";
 
 const NAV_ITEMS = [
   { group: "Projects", items: [
-    { label: "Project Tracking", href: "/projects" },
-    { label: "Tender Monitoring", href: "/tenders" },
+    { label: "Project Tracking", href: "/projects", module: "projects" },
+    { label: "Tender Monitoring", href: "/tenders", module: "tenders" },
   ]},
   { group: "Employees", items: [
-    { label: "Employees", href: "/employees" },
+    { label: "Employees", href: "/employees", module: "employees" },
   ]},
   { group: "Contacts", items: [
-    { label: "Contractors", href: "/contractors" },
-    { label: "Suppliers", href: "/suppliers" },
+    { label: "Contractors", href: "/contractors", module: "contractors" },
+    { label: "Suppliers", href: "/suppliers", module: "suppliers" },
   ]},
   { group: "Settings", items: [
-    { label: "Admin", href: "/admin" },
+    { label: "Admin", href: "/admin", module: "admin" },
   ]},
 ];
 
-export function NavMenu() {
+export function NavMenu({ accessibleModules }: { accessibleModules: string[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,6 +30,11 @@ export function NavMenu() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const visibleGroups = NAV_ITEMS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => accessibleModules.includes(item.module)),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="relative" ref={ref}>
@@ -56,7 +61,7 @@ export function NavMenu() {
 
       {open && (
         <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-2 z-50">
-          {NAV_ITEMS.map((group, gi) => (
+          {visibleGroups.map((group, gi) => (
             <div key={group.group}>
               {gi > 0 && <div className="my-1 border-t border-gray-100 dark:border-gray-800" />}
               <p className="px-4 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">

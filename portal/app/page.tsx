@@ -1,6 +1,6 @@
-"use client";
-
 import { ReactNode } from "react";
+import { createClient } from "@/lib/supabase-server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 function IconBuilding() {
   return (
@@ -42,55 +42,56 @@ function IconTruck() {
   );
 }
 
-const sections: { heading: string; cards: { href: string; title: string; description: string; icon: ReactNode }[] }[] = [
+const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; description: string; icon: ReactNode; module: string }[] }[] = [
   {
     heading: "Projects",
     cards: [
-      {
-        href: "/projects",
-        title: "Project Tracking",
-        description: "Track post-award project stages, tasks, and progress.",
-        icon: <IconFolders />,
-      },
-      {
-        href: "/tenders",
-        title: "Tender Monitoring",
-        description: "Track live tenders from the Nama iSupplier portal.",
-        icon: <IconClipboard />,
-      },
+      { href: "/projects", title: "Project Tracking", description: "Track post-award project stages, tasks, and progress.", icon: <IconFolders />, module: "projects" },
+      { href: "/tenders", title: "Tender Monitoring", description: "Track live tenders from the Nama iSupplier portal.", icon: <IconClipboard />, module: "tenders" },
     ],
   },
   {
     heading: "Employees",
     cards: [
-      {
-        href: "/employees",
-        title: "Employees",
-        description: "View and manage employee records.",
-        icon: <IconUsers />,
-      },
+      { href: "/employees", title: "Employees", description: "View and manage employee records.", icon: <IconUsers />, module: "employees" },
     ],
   },
   {
     heading: "Contacts",
     cards: [
-      {
-        href: "/contractors",
-        title: "Contractors",
-        description: "View and manage contractor company details.",
-        icon: <IconBuilding />,
-      },
-      {
-        href: "/suppliers",
-        title: "Suppliers",
-        description: "View and manage supplier company details.",
-        icon: <IconTruck />,
-      },
+      { href: "/contractors", title: "Contractors", description: "View and manage contractor company details.", icon: <IconBuilding />, module: "contractors" },
+      { href: "/suppliers", title: "Suppliers", description: "View and manage supplier company details.", icon: <IconTruck />, module: "suppliers" },
     ],
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let accessibleModules: string[] = [];
+
+  if (user) {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) {
+      const { data: perms } = await supabaseAdmin
+        .from("module_permissions")
+        .select("module, can_access")
+        .eq("role", profile.role);
+
+      accessibleModules = (perms ?? []).filter((p) => p.can_access).map((p) => p.module);
+    }
+  }
+
+  const sections = ALL_SECTIONS
+    .map((s) => ({ ...s, cards: s.cards.filter((c) => accessibleModules.includes(c.module)) }))
+    .filter((s) => s.cards.length > 0);
+
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-3xl mx-auto">

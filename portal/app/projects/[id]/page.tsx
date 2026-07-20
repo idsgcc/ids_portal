@@ -14,6 +14,8 @@ type Task = {
   actual_start: string | null;
   actual_finish: string | null;
   notes: string | null;
+  assigned_to_profile_id: string | null;
+  assigned_to_profile: { full_name: string } | null;
   template_task: TemplateTask | null;
 };
 type Plan = { id: string; project_tasks: Task[] };
@@ -27,6 +29,36 @@ type Project = {
   contractor: { id: string; name: string } | null;
   project_plans: Plan[];
 };
+type Profile = { id: string; full_name: string };
+type PO = {
+  id: string;
+  po_number: string;
+  supplier_name: string;
+  description: string | null;
+  amount: number | null;
+  currency: string;
+  status: string;
+  issued_date: string | null;
+  notes: string | null;
+  created_at: string;
+};
+type Invoice = {
+  id: string;
+  invoice_number: string;
+  supplier_name: string;
+  purchase_order_id: string | null;
+  amount: number | null;
+  currency: string;
+  status: string;
+  invoice_date: string | null;
+  due_date: string | null;
+  paid_date: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+const EMPTY_PO = { po_number: "", supplier_name: "", description: "", amount: "", currency: "USD", status: "draft", issued_date: "", notes: "" };
+const EMPTY_INV = { invoice_number: "", supplier_name: "", purchase_order_id: "", amount: "", currency: "USD", status: "pending", invoice_date: "", due_date: "", notes: "" };
 
 const TASK_STATUSES = [
   { value: "not_started", label: "Not Started", color: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" },
@@ -41,6 +73,18 @@ const PROJECT_STATUSES = [
   { value: "at_risk",   label: "At Risk",   color: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" },
   { value: "blocked",   label: "Blocked",   color: "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" },
   { value: "completed", label: "Completed", color: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" },
+];
+
+const PO_STATUSES = [
+  { value: "draft",    label: "Draft",    color: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" },
+  { value: "approved", label: "Approved", color: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" },
+  { value: "closed",   label: "Closed",   color: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" },
+];
+
+const INV_STATUSES = [
+  { value: "pending",  label: "Pending",  color: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" },
+  { value: "approved", label: "Approved", color: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" },
+  { value: "paid",     label: "Paid",     color: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" },
 ];
 
 const PHASE_ORDER = [
@@ -63,10 +107,26 @@ function nextTaskStatus(s: string) {
 function projectStatusStyle(s: string) {
   return PROJECT_STATUSES.find((x) => x.value === s)?.color ?? PROJECT_STATUSES[0].color;
 }
+function statusColor(statuses: { value: string; color: string }[], s: string) {
+  return statuses.find((x) => x.value === s)?.color ?? statuses[0].color;
+}
+function nextStatus(statuses: { value: string }[], s: string) {
+  const idx = statuses.findIndex((x) => x.value === s);
+  return statuses[(idx + 1) % statuses.length].value;
+}
 
 function fmtDate(d: string | null) {
   if (!d) return null;
   return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function fmtAmount(amount: number | null, currency: string) {
+  if (amount == null) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
+  } catch {
+    return `${currency} ${amount.toLocaleString()}`;
+  }
 }
 
 function effectiveSortOrder(t: Task) {
@@ -127,16 +187,50 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [inserting, setInserting] = useState(false);
   const insertInputRef = useRef<HTMLInputElement>(null);
 
+  // Profiles and user role
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Financials
+  const [pos, setPos] = useState<PO[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [showAddPO, setShowAddPO] = useState(false);
+  const [addPOForm, setAddPOForm] = useState(EMPTY_PO);
+  const [savingPO, setSavingPO] = useState(false);
+  const [showAddInvoice, setShowAddInvoice] = useState(false);
+  const [addInvoiceForm, setAddInvoiceForm] = useState(EMPTY_INV);
+  const [savingInvoice, setSavingInvoice] = useState(false);
+
   useEffect(() => {
     if (insertState) setTimeout(() => insertInputRef.current?.focus(), 50);
   }, [insertState]);
 
   async function load() {
-    const res = await fetch(`/api/projects/${id}`);
-    const data: Project = await res.json();
+    const [projRes, profilesRes, meRes] = await Promise.all([
+      fetch(`/api/projects/${id}`),
+      fetch("/api/profiles"),
+      fetch("/api/me"),
+    ]);
+
+    const data: Project = await projRes.json();
     setProject(data);
     setTasks(data.project_plans?.flatMap((p) => p.project_tasks ?? []) ?? []);
     setLoading(false);
+
+    setProfiles(await profilesRes.json());
+
+    const me = await meRes.json();
+    const role = me.role ?? null;
+    setUserRole(role);
+
+    if (role === "admin") {
+      const [posRes, invRes] = await Promise.all([
+        fetch(`/api/projects/${id}/purchase-orders`),
+        fetch(`/api/projects/${id}/invoices`),
+      ]);
+      setPos(await posRes.json());
+      setInvoices(await invRes.json());
+    }
   }
 
   useEffect(() => { load(); }, [id]);
@@ -200,6 +294,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setUpdatingTask(null);
   }
 
+  async function assignTask(taskId: string, profileId: string | null) {
+    const profile = profileId ? profiles.find((p) => p.id === profileId) ?? null : null;
+    setTasks((prev) => prev.map((t) =>
+      t.id === taskId
+        ? { ...t, assigned_to_profile_id: profileId, assigned_to_profile: profile ? { full_name: profile.full_name } : null }
+        : t
+    ));
+    await fetch(`/api/projects/${id}/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigned_to_profile_id: profileId }),
+    });
+  }
+
   async function bulkUpdateSortOrders(ordered: Task[]) {
     const updates = ordered.map((t, i) => ({ id: t.id, sort_order: i * 10 }));
     await fetch(`/api/projects/${id}/tasks`, {
@@ -257,7 +365,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         return;
       }
 
-      // Insert new task into ordered list at the right position
       let insertIdx: number;
       if (afterId === null) {
         const lastPhaseIdx = globalSorted.reduce((acc, t, i) => t.phase === phase ? i : acc, -1);
@@ -285,6 +392,66 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setTimeout(() => setReminderSent(null), 3000);
   }
 
+  // PO actions
+  async function savePO() {
+    if (!addPOForm.po_number.trim() || !addPOForm.supplier_name.trim()) return;
+    setSavingPO(true);
+    const res = await fetch(`/api/projects/${id}/purchase-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...addPOForm, amount: addPOForm.amount !== "" ? Number(addPOForm.amount) : null }),
+    });
+    const po = await res.json();
+    setPos((prev) => [po, ...prev]);
+    setAddPOForm(EMPTY_PO);
+    setShowAddPO(false);
+    setSavingPO(false);
+  }
+
+  async function deletePO(poId: string) {
+    setPos((prev) => prev.filter((p) => p.id !== poId));
+    await fetch(`/api/projects/${id}/purchase-orders/${poId}`, { method: "DELETE" });
+  }
+
+  async function updatePOStatus(poId: string, status: string) {
+    setPos((prev) => prev.map((p) => p.id === poId ? { ...p, status } : p));
+    await fetch(`/api/projects/${id}/purchase-orders/${poId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Invoice actions
+  async function saveInvoice() {
+    if (!addInvoiceForm.invoice_number.trim() || !addInvoiceForm.supplier_name.trim()) return;
+    setSavingInvoice(true);
+    const res = await fetch(`/api/projects/${id}/invoices`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...addInvoiceForm, amount: addInvoiceForm.amount !== "" ? Number(addInvoiceForm.amount) : null }),
+    });
+    const inv = await res.json();
+    setInvoices((prev) => [inv, ...prev]);
+    setAddInvoiceForm(EMPTY_INV);
+    setShowAddInvoice(false);
+    setSavingInvoice(false);
+  }
+
+  async function deleteInvoice(invId: string) {
+    setInvoices((prev) => prev.filter((i) => i.id !== invId));
+    await fetch(`/api/projects/${id}/invoices/${invId}`, { method: "DELETE" });
+  }
+
+  async function updateInvoiceStatus(invId: string, status: string) {
+    setInvoices((prev) => prev.map((i) => i.id === invId ? { ...i, status } : i));
+    await fetch(`/api/projects/${id}/invoices/${invId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  }
+
   if (loading) return <main className="min-h-screen p-8"><p className="text-gray-400 text-sm">Loading…</p></main>;
   if (!project) return <main className="min-h-screen p-8"><p className="text-red-500 text-sm">Project not found.</p></main>;
 
@@ -292,7 +459,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const done = tasks.filter((t) => t.status === "completed").length;
   const pct = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
 
-  const COLS = "grid-cols-[1.25rem_1.5fr_2.5fr_0.5fr_1fr_1fr_auto]";
+  const COLS = "grid-cols-[1.25rem_1.5fr_2.5fr_0.5fr_1fr_1fr_1fr_auto]";
 
   return (
     <main className="min-h-screen p-8">
@@ -389,7 +556,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   {/* Column headers */}
                   <div className={`grid ${COLS} bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-2`}>
                     <div />
-                    {["Status", "Task", "Dur", "Planned", "Actual", ""].map((h) => (
+                    {["Status", "Task", "Dur", "Planned", "Actual", "Assigned", ""].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
                   </div>
@@ -418,7 +585,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           ${draggedId === task.id ? "opacity-30 bg-blue-50 dark:bg-blue-900/10" : "hover:bg-gray-50 dark:hover:bg-gray-900/50"}
                         `}
                       >
-                        {/* Drag handle — only this element is draggable */}
+                        {/* Drag handle */}
                         <div
                           draggable
                           onDragStart={(e) => {
@@ -441,7 +608,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           {taskStatusLabel(task.status)}
                         </button>
 
-                        {/* Task name — click to expand */}
+                        {/* Task name */}
                         <span
                           className="text-sm font-medium cursor-pointer"
                           onClick={() => setEditingTask(editingTask === task.id ? null : task.id)}
@@ -470,6 +637,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             : <span className="text-gray-300 dark:text-gray-600">—</span>}
                         </span>
 
+                        {/* Assignee */}
+                        <div className="min-w-0">
+                          {task.assigned_to_profile?.full_name ? (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium truncate block w-fit max-w-full cursor-pointer"
+                              onClick={() => setEditingTask(editingTask === task.id ? null : task.id)}
+                              title={task.assigned_to_profile.full_name}
+                            >
+                              {task.assigned_to_profile.full_name.split(" ")[0]}
+                            </span>
+                          ) : (
+                            <span
+                              className="text-xs text-gray-300 dark:text-gray-600 cursor-pointer hover:text-gray-400 dark:hover:text-gray-500"
+                              onClick={() => setEditingTask(editingTask === task.id ? null : task.id)}
+                            >
+                              —
+                            </span>
+                          )}
+                        </div>
+
                         {/* Actions */}
                         <div className="flex items-center gap-1 shrink-0">
                           <button
@@ -492,38 +679,55 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <div className="h-0.5 bg-blue-500 mx-4" />
                       )}
 
-                      {/* Expanded date/notes/delete panel */}
+                      {/* Expanded panel */}
                       {editingTask === task.id && (
-                        <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 px-4 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          {[
-                            { label: "Planned Start", key: "planned_start" },
-                            { label: "Planned Finish", key: "planned_finish" },
-                            { label: "Actual Start", key: "actual_start" },
-                            { label: "Actual Finish", key: "actual_finish" },
-                          ].map(({ label, key }) => (
-                            <div key={key}>
-                              <p className="text-xs text-gray-400 mb-1">{label}</p>
-                              <input
-                                type="date"
-                                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
-                                value={(task as Record<string, string | null>)[key] ?? ""}
-                                onChange={(e) => updateTask(task.id, { [key]: e.target.value || null } as Partial<Task>)}
+                        <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 px-4 py-4 space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {[
+                              { label: "Planned Start", key: "planned_start" },
+                              { label: "Planned Finish", key: "planned_finish" },
+                              { label: "Actual Start", key: "actual_start" },
+                              { label: "Actual Finish", key: "actual_finish" },
+                            ].map(({ label, key }) => (
+                              <div key={key}>
+                                <p className="text-xs text-gray-400 mb-1">{label}</p>
+                                <input
+                                  type="date"
+                                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+                                  value={(task as Record<string, string | null>)[key] ?? ""}
+                                  onChange={(e) => updateTask(task.id, { [key]: e.target.value || null } as Partial<Task>)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="col-span-2 sm:col-span-3">
+                              <p className="text-xs text-gray-400 mb-1">Notes</p>
+                              <textarea
+                                rows={2}
+                                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500 resize-none"
+                                value={task.notes ?? ""}
+                                onChange={(e) => updateTask(task.id, { notes: e.target.value || null })}
                               />
                             </div>
-                          ))}
-                          <div className="col-span-2 sm:col-span-3">
-                            <p className="text-xs text-gray-400 mb-1">Notes</p>
-                            <textarea
-                              rows={2}
-                              className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500 resize-none"
-                              value={task.notes ?? ""}
-                              onChange={(e) => updateTask(task.id, { notes: e.target.value || null })}
-                            />
+                            <div>
+                              <p className="text-xs text-gray-400 mb-1">Assigned To</p>
+                              <select
+                                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+                                value={task.assigned_to_profile_id ?? ""}
+                                onChange={(e) => assignTask(task.id, e.target.value || null)}
+                              >
+                                <option value="">— Unassigned —</option>
+                                {profiles.map((p) => (
+                                  <option key={p.id} value={p.id}>{p.full_name}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                          <div className="flex items-end">
+                          <div>
                             <button
                               onClick={() => deleteTask(task.id)}
-                              className="w-full py-1.5 rounded-lg border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-medium transition-colors"
+                              className="py-1.5 px-3 rounded-lg border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-medium transition-colors"
                             >
                               Delete task
                             </button>
@@ -606,7 +810,324 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             );
           })}
         </div>
+
+        {/* Financials — admin only */}
+        {userRole === "admin" && (
+          <section className="mt-12">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6">Financials</h2>
+
+            {/* Purchase Orders */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Purchase Orders</h3>
+                <button
+                  onClick={() => { setAddPOForm(EMPTY_PO); setShowAddPO(true); }}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                >
+                  + Add PO
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="grid grid-cols-[1fr_1fr_1.5fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                  {["PO #", "Supplier", "Description", "Amount", "Status", "Issued", ""].map((h) => (
+                    <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
+                  ))}
+                </div>
+                {pos.length === 0 ? (
+                  <p className="text-xs text-gray-400 px-4 py-4">No purchase orders yet.</p>
+                ) : (
+                  pos.map((po, i) => (
+                    <div key={po.id} className={`grid grid-cols-[1fr_1fr_1.5fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < pos.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                      <span className="text-sm font-medium">{po.po_number}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{po.supplier_name}</span>
+                      <span className="text-xs text-gray-500 truncate">{po.description ?? "—"}</span>
+                      <span className="text-sm">{fmtAmount(po.amount, po.currency)}</span>
+                      <button
+                        onClick={() => updatePOStatus(po.id, nextStatus(PO_STATUSES, po.status))}
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(PO_STATUSES, po.status)}`}
+                      >
+                        {PO_STATUSES.find((s) => s.value === po.status)?.label ?? po.status}
+                      </button>
+                      <span className="text-xs text-gray-500">{po.issued_date ? fmtDate(po.issued_date) : "—"}</span>
+                      <button
+                        onClick={() => deletePO(po.id)}
+                        className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
+                        title="Delete PO"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Invoices */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Invoices</h3>
+                <button
+                  onClick={() => { setAddInvoiceForm(EMPTY_INV); setShowAddInvoice(true); }}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                >
+                  + Add Invoice
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                  {["Invoice #", "Supplier", "Linked PO", "Amount", "Status", "Invoice Date", "Due Date", ""].map((h) => (
+                    <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
+                  ))}
+                </div>
+                {invoices.length === 0 ? (
+                  <p className="text-xs text-gray-400 px-4 py-4">No invoices yet.</p>
+                ) : (
+                  invoices.map((inv, i) => {
+                    const linkedPO = inv.purchase_order_id ? pos.find((p) => p.id === inv.purchase_order_id) : null;
+                    return (
+                      <div key={inv.id} className={`grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < invoices.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                        <span className="text-sm font-medium">{inv.invoice_number}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{inv.supplier_name}</span>
+                        <span className="text-xs text-gray-500">{linkedPO ? linkedPO.po_number : "—"}</span>
+                        <span className="text-sm">{fmtAmount(inv.amount, inv.currency)}</span>
+                        <button
+                          onClick={() => updateInvoiceStatus(inv.id, nextStatus(INV_STATUSES, inv.status))}
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(INV_STATUSES, inv.status)}`}
+                        >
+                          {INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}
+                        </button>
+                        <span className="text-xs text-gray-500">{inv.invoice_date ? fmtDate(inv.invoice_date) : "—"}</span>
+                        <span className="text-xs text-gray-500">{inv.due_date ? fmtDate(inv.due_date) : "—"}</span>
+                        <button
+                          onClick={() => deleteInvoice(inv.id)}
+                          className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1"
+                          title="Delete invoice"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </section>
+        )}
       </div>
+
+      {/* Add PO Modal */}
+      {showAddPO && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-lg">
+            <h2 className="text-lg font-semibold mb-5">New Purchase Order</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">PO Number *</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="PO-2026-001"
+                    value={addPOForm.po_number}
+                    onChange={(e) => setAddPOForm({ ...addPOForm, po_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Supplier *</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Supplier name"
+                    value={addPOForm.supplier_name}
+                    onChange={(e) => setAddPOForm({ ...addPOForm, supplier_name: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Description</label>
+                <input
+                  type="text"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  placeholder="Equipment supply…"
+                  value={addPOForm.description}
+                  onChange={(e) => setAddPOForm({ ...addPOForm, description: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+                  <input
+                    type="number"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                    value={addPOForm.amount}
+                    onChange={(e) => setAddPOForm({ ...addPOForm, amount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Currency</label>
+                  <select
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={addPOForm.currency}
+                    onChange={(e) => setAddPOForm({ ...addPOForm, currency: e.target.value })}
+                  >
+                    <option value="USD">USD</option>
+                    <option value="OMR">OMR</option>
+                    <option value="EUR">EUR</option>
+                    <option value="AED">AED</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                  <select
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={addPOForm.status}
+                    onChange={(e) => setAddPOForm({ ...addPOForm, status: e.target.value })}
+                  >
+                    {PO_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Issued Date</label>
+                <input
+                  type="date"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  value={addPOForm.issued_date}
+                  onChange={(e) => setAddPOForm({ ...addPOForm, issued_date: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={savePO}
+                disabled={savingPO || !addPOForm.po_number.trim() || !addPOForm.supplier_name.trim()}
+                className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+              >
+                {savingPO ? "Saving…" : "Save PO"}
+              </button>
+              <button onClick={() => setShowAddPO(false)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Invoice Modal */}
+      {showAddInvoice && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-lg">
+            <h2 className="text-lg font-semibold mb-5">New Invoice</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Invoice Number *</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="INV-2026-001"
+                    value={addInvoiceForm.invoice_number}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, invoice_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Supplier *</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Supplier name"
+                    value={addInvoiceForm.supplier_name}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, supplier_name: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Linked PO</label>
+                <select
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  value={addInvoiceForm.purchase_order_id}
+                  onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, purchase_order_id: e.target.value })}
+                >
+                  <option value="">— None —</option>
+                  {pos.map((po) => (
+                    <option key={po.id} value={po.id}>{po.po_number} · {po.supplier_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+                  <input
+                    type="number"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                    value={addInvoiceForm.amount}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, amount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Currency</label>
+                  <select
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={addInvoiceForm.currency}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, currency: e.target.value })}
+                  >
+                    <option value="USD">USD</option>
+                    <option value="OMR">OMR</option>
+                    <option value="EUR">EUR</option>
+                    <option value="AED">AED</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                  <select
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={addInvoiceForm.status}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, status: e.target.value })}
+                  >
+                    {INV_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Invoice Date</label>
+                  <input
+                    type="date"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={addInvoiceForm.invoice_date}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, invoice_date: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={addInvoiceForm.due_date}
+                    onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, due_date: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={saveInvoice}
+                disabled={savingInvoice || !addInvoiceForm.invoice_number.trim() || !addInvoiceForm.supplier_name.trim()}
+                className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+              >
+                {savingInvoice ? "Saving…" : "Save Invoice"}
+              </button>
+              <button onClick={() => setShowAddInvoice(false)} className="flex-1 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
