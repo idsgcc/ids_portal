@@ -6,14 +6,17 @@ export async function PATCH(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const { userId } = await params;
-  const { role } = await req.json();
-  if (!role) return NextResponse.json({ error: "role required" }, { status: 400 });
+  const body = await req.json();
 
-  const { error } = await supabaseAdmin
-    .from("profiles")
-    .update({ role })
-    .eq("id", userId);
+  if (body.password) {
+    if (body.password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: body.password });
+    if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+    return NextResponse.json({ ok: true });
+  }
 
+  if (!body.role) return NextResponse.json({ error: "role or password required" }, { status: 400 });
+  const { error } = await supabaseAdmin.from("profiles").update({ role: body.role }).eq("id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
   return NextResponse.json({ ok: true });
 }

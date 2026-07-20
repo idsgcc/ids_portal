@@ -93,6 +93,10 @@ function UsersSection() {
   const [changingRole, setChangingRole] = useState<string | null>(null);
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [settingPassword, setSettingPassword] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   useEffect(() => { load(); }, []);
 
@@ -118,6 +122,22 @@ function UsersSection() {
     setForm({ email: "", full_name: "", password: "", role: "engineer" });
     setShowForm(false);
     setSaving(false);
+  }
+
+  async function setPassword(userId: string) {
+    if (newPassword.length < 6) { setPasswordError("Password must be at least 6 characters"); return; }
+    setSavingPassword(true);
+    setPasswordError("");
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setPasswordError(data.error ?? "Failed to set password"); setSavingPassword(false); return; }
+    setSavingPassword(false);
+    setSettingPassword(null);
+    setNewPassword("");
   }
 
   async function deleteUser(userId: string) {
@@ -187,6 +207,7 @@ function UsersSection() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
                 <th className="px-4 py-3" />
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -204,6 +225,37 @@ function UsersSection() {
                       <option value="engineer">Engineer</option>
                       <option value="admin">Admin</option>
                     </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    {settingPassword === u.id ? (
+                      <span className="flex items-center gap-2">
+                        <input
+                          autoFocus
+                          type="password"
+                          placeholder="New password"
+                          className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-500 w-36"
+                          value={newPassword}
+                          onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") setPassword(u.id); if (e.key === "Escape") { setSettingPassword(null); setNewPassword(""); setPasswordError(""); } }}
+                        />
+                        <button
+                          onClick={() => setPassword(u.id)}
+                          disabled={savingPassword}
+                          className="text-xs px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium transition-colors"
+                        >
+                          {savingPassword ? "…" : "Save"}
+                        </button>
+                        <button onClick={() => { setSettingPassword(null); setNewPassword(""); setPasswordError(""); }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
+                        {passwordError && <span className="text-xs text-red-500">{passwordError}</span>}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => { setSettingPassword(u.id); setNewPassword(""); setPasswordError(""); setConfirmDelete(null); }}
+                        className="text-xs text-gray-400 hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        Set password
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {confirmDelete === u.id ? (
