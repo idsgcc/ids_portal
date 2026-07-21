@@ -5,6 +5,7 @@ import Link from "next/link";
 
 type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; notes: string | null; sort_order: number | null; assigned_to_profile: { full_name: string } | null; template_task: { sequence_order: number } | null };
 type Plan = { project_tasks: Task[] };
+type Invoice = { id: string; invoice_number: string; party_type: string; amount: number | null; currency: string; status: string; due_date: string | null };
 type Project = {
   id: string;
   name: string;
@@ -14,6 +15,7 @@ type Project = {
   awarded_date: string | null;
   contractor: { name: string } | null;
   project_plans: Plan[];
+  invoices: Invoice[];
 };
 type Template = { id: string; name: string };
 type Contractor = { id: string; name: string };
@@ -55,6 +57,18 @@ function fmtShortDate(d: string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
+function fmtAmount(amount: number | null, currency: string) {
+  if (amount == null) return null;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
+}
+
+function getOldestOverdueClientInvoice(invoices: Invoice[]): Invoice | null {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return (invoices ?? [])
+    .filter((inv) => inv.party_type === "client" && inv.status !== "paid" && inv.due_date && new Date(inv.due_date) < today)
+    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())[0] ?? null;
+}
+
 function statusStyle(s: string) {
   return PROJECT_STATUSES.find((x) => x.value === s)?.color ?? PROJECT_STATUSES[0].color;
 }
@@ -94,10 +108,6 @@ function getSteps(plans: Plan[]): { current: StepInfo | null; next: StepInfo | n
   };
 }
 
-function taskStats(plans: Plan[]) {
-  const tasks = plans.flatMap((p) => p.project_tasks ?? []);
-  return { done: tasks.filter((t) => t.status === "completed").length, total: tasks.length };
-}
 
 function lifecycleGroup(status: string): string {
   if (status === "upcoming") return "Upcoming";
@@ -297,16 +307,16 @@ export default function ProjectsPage() {
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   {/* Table header */}
                   <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
-                    {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", "Progress"].map((h) => (
+                    {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", "Overdue Invoice"].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
                   </div>
 
                   {/* Rows */}
                   {items.map((p, i) => {
-                    const { done, total } = taskStats(p.project_plans ?? []);
                     const { current, next } = getSteps(p.project_plans ?? []);
                     const dl = current?.status === "in_progress" ? deadlineStatus(current.planned_finish) : null;
+                    const overdueInv = getOldestOverdueClientInvoice(p.invoices ?? []);
                     const rowTint = dl === "overdue" ? "bg-red-50/60 dark:bg-red-900/10" : dl === "soon" ? "bg-amber-50/60 dark:bg-amber-900/10" : "";
                     return (
                       <div
@@ -386,11 +396,19 @@ export default function ProjectsPage() {
                             </div>
                           ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 rounded-full" style={{ width: total > 0 ? `${Math.round((done / total) * 100)}%` : "0%" }} />
-                          </div>
-                          <span className="text-xs text-gray-400 shrink-0">{done}/{total}</span>
+                        <div className="min-w-0">
+                          {overdueInv ? (() => {
+                            const daysOverdue = Math.floor((Date.now() - new Date(overdueInv.due_date!).getTime()) / 86400000);
+                            const amt = fmtAmount(overdueInv.amount, overdueInv.currency);
+                            return (
+                              <div>
+                                <span className="text-xs font-medium text-red-600 dark:text-red-400 truncate block">{overdueInv.invoice_number}</span>
+                                <span className="text-xs text-red-500 dark:text-red-400">
+                                  {amt ? `${amt} · ` : ""}{daysOverdue}d overdue
+                                </span>
+                              </div>
+                            );
+                          })() : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                         </div>
                       </div>
                     );

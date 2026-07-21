@@ -9,7 +9,8 @@ export async function GET() {
       contractor:contractors(name),
       project_plans(
         project_tasks(id, name, status, phase, planned_finish, notes, sort_order, assigned_to_profile_id, assigned_to_profile:profiles!assigned_to_profile_id(full_name), template_task:template_tasks(sequence_order))
-      )
+      ),
+      invoices(id, invoice_number, party_type, amount, currency, status, due_date)
     `)
     .order("created_at", { ascending: false });
 
