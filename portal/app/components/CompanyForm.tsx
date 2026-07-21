@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export type CompanyType = "contractor" | "supplier";
 
@@ -176,9 +177,9 @@ export default function CompanyForm({
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-lg mx-auto">
-        <a href={backHref} className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href={backHref} className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← {companyId ? `Back to ${isContractor ? "contractor" : "supplier"}` : `Back to ${isContractor ? "contractors" : "suppliers"}`}
-        </a>
+        </Link>
 
         <h1 className="text-2xl font-bold mt-6 mb-8">
           {companyId ? "Edit" : "Add"} {isContractor ? "Contractor" : "Supplier"}

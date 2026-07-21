@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Employee = {
   id: string;
@@ -139,9 +140,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-lg mx-auto">
-        <a href="/employees" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/employees" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to employees
-        </a>
+        </Link>
 
         {/* Profile header */}
         <div className="mt-6 mb-6 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
@@ -197,12 +198,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
         {/* Actions */}
         <div className="flex gap-3 mt-8">
-          <a
+          <Link
             href={`/employees/${id}/edit`}
             className="flex-1 py-2 text-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
           >
             Edit
-          </a>
+          </Link>
           {employee.status === "active" ? (
             <button
               onClick={() => setStatus("on_leave")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 type Task = { id: string; name: string; status: string; phase: string; planned_finish: string | null; notes: string | null; sort_order: number | null; assigned_to_profile: { full_name: string } | null; template_task: { sequence_order: number } | null };
 type Plan = { project_tasks: Task[] };
@@ -175,9 +176,9 @@ export default function ProjectsPage() {
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
-        <a href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to portal
-        </a>
+        </Link>
 
         <div className="flex items-center justify-between mt-6 mb-8">
           <div>
@@ -312,9 +313,9 @@ export default function ProjectsPage() {
                         key={p.id}
                         className={`grid grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr] items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
                       >
-                        <a href={`/projects/${p.id}`} className="font-medium text-sm hover:text-blue-600 dark:hover:text-blue-400 truncate">
+                        <Link href={`/projects/${p.id}`} className="font-medium text-sm hover:text-blue-600 dark:hover:text-blue-400 truncate">
                           {p.name}
-                        </a>
+                        </Link>
                         <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{p.client_name}</span>
                         <div>
                           {isReadOnly ? (

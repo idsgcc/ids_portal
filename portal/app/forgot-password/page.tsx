@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function ForgotPasswordPage() {
@@ -38,9 +39,9 @@ export default function ForgotPasswordPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 A password reset link has been sent to <strong>{email}</strong>. Click it to set a new password.
               </p>
-              <a href="/login" className="block text-sm text-blue-600 dark:text-blue-400 hover:underline mt-4">
+              <Link href="/login" className="block text-sm text-blue-600 dark:text-blue-400 hover:underline mt-4">
                 Back to sign in
-              </a>
+              </Link>
             </div>
           ) : (
             <>
@@ -69,9 +70,9 @@ export default function ForgotPasswordPage() {
                   {loading ? "Sending…" : "Send reset link"}
                 </button>
               </form>
-              <a href="/login" className="block text-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mt-4">
+              <Link href="/login" className="block text-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mt-4">
                 Back to sign in
-              </a>
+              </Link>
             </>
           )}
         </div>

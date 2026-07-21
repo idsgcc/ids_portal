@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 type Employee = {
   id: string;
@@ -102,18 +103,18 @@ export default function EmployeesPage() {
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-5xl mx-auto">
-        <a href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to portal
-        </a>
+        </Link>
 
         <div className="flex items-center justify-between mt-6 mb-8">
           <div>
             <h1 className="text-2xl font-bold">Employees</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage employee records and documents</p>
           </div>
-          <a href="/employees/new" className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">
+          <Link href="/employees/new" className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">
             Add Employee
-          </a>
+          </Link>
         </div>
 
         {loading ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 type ScraperResult = {
   stdout?: string;
@@ -74,9 +75,9 @@ export default function TendersPage() {
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-3xl mx-auto">
-        <a href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to portal
-        </a>
+        </Link>
 
         <h1 className="text-2xl font-bold mt-6 mb-1">Tender Monitoring</h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Live tenders from the Nama iSupplier portal</p>

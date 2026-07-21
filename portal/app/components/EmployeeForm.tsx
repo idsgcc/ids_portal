@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type FormData = {
   full_name: string;
@@ -110,9 +111,9 @@ export default function EmployeeForm({
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-lg mx-auto">
-        <a href={backHref} className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href={backHref} className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← {employeeId ? "Back to profile" : "Back to employees"}
-        </a>
+        </Link>
 
         <h1 className="text-2xl font-bold mt-6 mb-8">{employeeId ? "Edit Employee" : "Add Employee"}</h1>
 
@@ -167,9 +168,9 @@ export default function EmployeeForm({
           >
             {saving ? "Saving…" : employeeId ? "Save Changes" : "Add Employee"}
           </button>
-          <a href={backHref} className="flex-1 py-2 text-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
+          <Link href={backHref} className="flex-1 py-2 text-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
             Cancel
-          </a>
+          </Link>
         </div>
       </div>
     </main>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Supplier = {
   id: string;
@@ -91,9 +92,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-lg mx-auto">
-        <a href="/suppliers" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/suppliers" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to suppliers
-        </a>
+        </Link>
 
         {/* Header */}
         <div className="mt-6 mb-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
@@ -144,12 +145,12 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
 
         {/* Actions */}
         <div className="flex gap-3">
-          <a
+          <Link
             href={`/suppliers/${id}/edit`}
             className="flex-1 py-2 text-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
           >
             Edit
-          </a>
+          </Link>
           <button
             onClick={cycleStatus}
             className="flex-1 py-2 rounded-lg border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-medium transition-colors"

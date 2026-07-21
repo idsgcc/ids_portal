@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
+import Link from "next/link";
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -44,16 +45,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <header className="border-b border-gray-200 dark:border-gray-800 px-8 py-3 flex items-center justify-between">
-            <a href="/">
+            <Link href="/">
               <Image src="/IDSLogo.png" alt="IDS Logo" width={180} height={108} className="h-20 w-auto" priority />
-            </a>
+            </Link>
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-400 dark:text-gray-600 font-mono">{VERSION}</span>
               {user && (
                 <>
-                  <a href="/account" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors hidden sm:block">
+                  <Link href="/account" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors hidden sm:block">
                     {profile?.full_name || user.email}
-                  </a>
+                  </Link>
                   <NavMenu accessibleModules={accessibleModules} />
                   <LogoutButton />
                 </>

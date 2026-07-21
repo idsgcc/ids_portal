@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function AccountPage() {
@@ -29,9 +30,9 @@ export default function AccountPage() {
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-md mx-auto">
-        <a href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to portal
-        </a>
+        </Link>
 
         <div className="mt-6 mb-8">
           <h1 className="text-2xl font-bold">Account</h1>

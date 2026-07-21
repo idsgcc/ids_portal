@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use, useRef } from "react";
+import Link from "next/link";
 
 type TemplateTask = { sequence_order: number; duration_days: number };
 type Task = {
@@ -70,7 +71,7 @@ type Invoice = {
 };
 
 const EMPTY_PO = { po_number: "", party_id: "", description: "", amount: "", currency: "AED", status: "draft", issued_date: "", notes: "" };
-const EMPTY_INV = { invoice_number: "", party_id: "", purchase_order_id: "", amount: "", currency: "AED", status: "pending", invoice_date: "", due_date: "", notes: "" };
+const EMPTY_INV = { invoice_number: "", party_id: "", purchase_order_id: "", amount: "", currency: "AED", status: "", invoice_date: "", due_date: "", notes: "" };
 
 const TASK_STATUSES = [
   { value: "not_started", label: "Not Started", color: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" },
@@ -93,9 +94,12 @@ const PO_STATUSES = [
   { value: "closed",   label: "Closed",   color: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" },
 ];
 
-const INV_STATUSES = [
-  { value: "pending",  label: "Pending",  color: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" },
-  { value: "approved", label: "Approved", color: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" },
+const CLIENT_INV_STATUSES = [
+  { value: "submitted", label: "Submitted", color: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" },
+  { value: "paid",      label: "Paid",      color: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" },
+];
+const SUPPLIER_INV_STATUSES = [
+  { value: "received", label: "Received", color: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" },
   { value: "paid",     label: "Paid",     color: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" },
 ];
 
@@ -228,10 +232,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }, [insertState]);
 
   async function load() {
-    const [projRes, profilesRes, meRes] = await Promise.all([
+    const [projRes, profilesRes, meRes, posRes, invRes, contractorsRes, suppliersRes] = await Promise.all([
       fetch(`/api/projects/${id}`),
       fetch("/api/profiles"),
       fetch("/api/me"),
+      fetch(`/api/projects/${id}/purchase-orders`),
+      fetch(`/api/projects/${id}/invoices`),
+      fetch("/api/contractors"),
+      fetch("/api/suppliers"),
     ]);
 
     const data: Project = await projRes.json();
@@ -239,24 +247,23 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setTasks(data.project_plans?.flatMap((p) => p.project_tasks ?? []) ?? []);
     setLoading(false);
 
-    setProfiles(await profilesRes.json());
+    const [profiles, me, pos, invoices, allContractors, allSuppliers] = await Promise.all([
+      profilesRes.json(),
+      meRes.json(),
+      posRes.json(),
+      invRes.json(),
+      contractorsRes.json(),
+      suppliersRes.json(),
+    ]);
 
-    const me = await meRes.json();
+    setProfiles(profiles);
     const role = me.role ?? null;
     setUserRole(role);
 
     if (role === "admin") {
-      const [posRes, invRes, contractorsRes, suppliersRes] = await Promise.all([
-        fetch(`/api/projects/${id}/purchase-orders`),
-        fetch(`/api/projects/${id}/invoices`),
-        fetch("/api/contractors"),
-        fetch("/api/suppliers"),
-      ]);
-      setPos(await posRes.json());
-      setInvoices(await invRes.json());
-      const allContractors = await contractorsRes.json();
+      setPos(pos);
+      setInvoices(invoices);
       setContractorsList(allContractors.map((c: Contractor) => ({ id: c.id, name: c.name })));
-      const allSuppliers = await suppliersRes.json();
       setSuppliersList(allSuppliers.map((s: SupplierEntity) => ({ id: s.id, name: s.name })));
     }
   }
@@ -630,14 +637,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const done = tasks.filter((t) => t.status === "completed").length;
   const pct = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
 
-  const COLS = "grid-cols-[1.25rem_1.5fr_2.5fr_0.5fr_1fr_1fr_1fr_auto]";
+  const COLS = "grid-cols-[1.25rem_1.5fr_2.5fr_0.5fr_1fr_1fr_1fr_7rem]";
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
-        <a href="/projects" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/projects" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to projects
-        </a>
+        </Link>
 
         {/* Project header */}
         <div className="mt-6 mb-8 flex items-start justify-between gap-6 flex-wrap">
@@ -1006,7 +1013,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
             {/* CLIENT */}
             <div className="mb-10">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-5 pb-2 border-b border-gray-200 dark:border-gray-800">Client</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300 mb-5 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">Client</h3>
 
               {/* Client POs */}
               <div className="mb-6">
@@ -1047,7 +1054,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Invoices</span>
                     <span className="text-xs text-gray-400 dark:text-gray-500">issued to client</span>
                   </div>
-                  <button onClick={() => { setAddInvoiceForm(EMPTY_INV); setAddingInvoice("client"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Issue Invoice</button>
+                  <button onClick={() => { setAddInvoiceForm({ ...EMPTY_INV, status: "submitted" }); setAddingInvoice("client"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Issue Invoice</button>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
@@ -1063,7 +1070,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{inv.contractor?.name ?? inv.supplier_name ?? "—"}</span>
                         <span className="text-xs text-gray-500 min-w-0 truncate">{linkedPO ? linkedPO.po_number : "—"}</span>
                         <span className="text-sm min-w-0">{fmtAmount(inv.amount, inv.currency)}</span>
-                        <button onClick={() => updateInvoiceStatus(inv.id, nextStatus(INV_STATUSES, inv.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(INV_STATUSES, inv.status)}`}>{INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}</button>
+                        <button onClick={() => updateInvoiceStatus(inv.id, nextStatus(CLIENT_INV_STATUSES, inv.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(CLIENT_INV_STATUSES, inv.status)}`}>{CLIENT_INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}</button>
                         <span className="text-xs text-gray-500">{inv.invoice_date ? fmtDate(inv.invoice_date) : "—"}</span>
                         <span className="text-xs text-gray-500">{inv.due_date ? fmtDate(inv.due_date) : "—"}</span>
                         <div className="flex items-center gap-1">
@@ -1079,7 +1086,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
             {/* SUPPLIER */}
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-5 pb-2 border-b border-gray-200 dark:border-gray-800">Supplier</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-5 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">Supplier</h3>
 
               {/* Supplier POs */}
               <div className="mb-6">
@@ -1120,7 +1127,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Invoices</span>
                     <span className="text-xs text-gray-400 dark:text-gray-500">received from supplier</span>
                   </div>
-                  <button onClick={() => { setAddInvoiceForm(EMPTY_INV); setAddingInvoice("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive Invoice</button>
+                  <button onClick={() => { setAddInvoiceForm({ ...EMPTY_INV, status: "received" }); setAddingInvoice("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive Invoice</button>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
@@ -1136,7 +1143,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{inv.supplier?.name ?? inv.supplier_name ?? "—"}</span>
                         <span className="text-xs text-gray-500 min-w-0 truncate">{linkedPO ? linkedPO.po_number : "—"}</span>
                         <span className="text-sm min-w-0">{fmtAmount(inv.amount, inv.currency)}</span>
-                        <button onClick={() => updateInvoiceStatus(inv.id, nextStatus(INV_STATUSES, inv.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(INV_STATUSES, inv.status)}`}>{INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}</button>
+                        <button onClick={() => updateInvoiceStatus(inv.id, nextStatus(SUPPLIER_INV_STATUSES, inv.status))} className={`text-xs px-2.5 py-1 rounded-full font-medium w-fit hover:opacity-75 transition-opacity ${statusColor(SUPPLIER_INV_STATUSES, inv.status)}`}>{SUPPLIER_INV_STATUSES.find((s) => s.value === inv.status)?.label ?? inv.status}</button>
                         <span className="text-xs text-gray-500">{inv.invoice_date ? fmtDate(inv.invoice_date) : "—"}</span>
                         <span className="text-xs text-gray-500">{inv.due_date ? fmtDate(inv.due_date) : "—"}</span>
                         <div className="flex items-center gap-1">
@@ -1343,7 +1350,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     value={addInvoiceForm.status}
                     onChange={(e) => setAddInvoiceForm({ ...addInvoiceForm, status: e.target.value })}
                   >
-                    {INV_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    {(addingInvoice === "client" ? CLIENT_INV_STATUSES : SUPPLIER_INV_STATUSES).map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -1500,7 +1507,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <div>
                   <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Status</label>
                   <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={editInvoiceForm.status} onChange={(e) => setEditInvoiceForm({ ...editInvoiceForm, status: e.target.value })}>
-                    {INV_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    {(editingInvoice?.party_type === "client" ? CLIENT_INV_STATUSES : SUPPLIER_INV_STATUSES).map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
               </div>

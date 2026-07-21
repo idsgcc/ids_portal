@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 
 const NAV_ITEMS = [
   { group: "Projects", items: [
@@ -68,14 +69,14 @@ export function NavMenu({ accessibleModules }: { accessibleModules: string[] }) 
                 {group.group}
               </p>
               {group.items.map((item) => (
-                <a
+                <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setOpen(false)}
                   className="block px-4 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   {item.label}
-                </a>
+                </Link>
               ))}
             </div>
           ))}

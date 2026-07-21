@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 type Contact = { id: string; name: string | null; title: string | null; email: string | null; phone: string | null; sort_order: number };
 
@@ -130,9 +131,9 @@ export default function ContractorsPage() {
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-5xl mx-auto">
-        <a href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to portal
-        </a>
+        </Link>
 
         <div className="flex items-center justify-between mt-6 mb-6">
           <div>

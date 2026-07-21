@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Contact = {
   id: string;
@@ -93,9 +94,9 @@ export default function ContractorDetailPage({ params }: { params: Promise<{ id:
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-lg mx-auto">
-        <a href="/contractors" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <Link href="/contractors" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to contractors
-        </a>
+        </Link>
 
         {/* Header */}
         <div className="mt-6 mb-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
@@ -159,12 +160,12 @@ export default function ContractorDetailPage({ params }: { params: Promise<{ id:
 
         {/* Actions */}
         <div className="flex gap-3">
-          <a
+          <Link
             href={`/contractors/${id}/edit`}
             className="flex-1 py-2 text-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
           >
             Edit
-          </a>
+          </Link>
           <button
             onClick={toggleStatus}
             className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
