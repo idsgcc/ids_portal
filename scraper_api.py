@@ -6,18 +6,17 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 SECRET_TOKEN = os.environ.get("SCRAPER_TOKEN", "")
-SCRIPT_PATH = "/home/opc/nama_monitor.py"
+NAMA_SCRIPT  = "/home/opc/nama_monitor.py"
+OETC_SCRIPT  = "/home/opc/oetc_monitor.py"
 
 
-@app.route("/run-scraper", methods=["POST"])
-def run_scraper():
+def run_script(script_path):
     auth = request.headers.get("Authorization", "")
     if not SECRET_TOKEN or auth != f"Bearer {SECRET_TOKEN}":
         return jsonify({"error": "Unauthorized"}), 401
-
     try:
         result = subprocess.run(
-            ["python3", SCRIPT_PATH],
+            ["python3", script_path],
             capture_output=True, text=True, timeout=60
         )
         return jsonify({
@@ -27,6 +26,16 @@ def run_scraper():
         })
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Scraper timed out"}), 504
+
+
+@app.route("/run-scraper", methods=["POST"])
+def run_scraper():
+    return run_script(NAMA_SCRIPT)
+
+
+@app.route("/run-scraper-oetc", methods=["POST"])
+def run_scraper_oetc():
+    return run_script(OETC_SCRIPT)
 
 
 @app.route("/health", methods=["GET"])

@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 
 const NAV_ITEMS = [
+  { group: "Finance", items: [
+    { label: "Dashboard", href: "/dashboard", module: "dashboard" },
+  ]},
   { group: "Projects", items: [
     { label: "Project Tracking", href: "/projects", module: "projects" },
     { label: "Tender Monitoring", href: "/tenders", module: "tenders" },

@@ -18,8 +18,8 @@ Next.js + Tailwind app at `/portal`. Dev server: `cd portal && npm run dev`.
 ## Oracle Cloud VM
 - **IP:** 129.151.129.121
 - **User:** opc
-- **SSH key:** `/Users/paulwinick/Projects/ids/ssh-key-2026-07-02.key` (not committed)
-- **SSH:** `ssh -i /Users/paulwinick/Projects/ids/ssh-key-2026-07-02.key -o StrictHostKeyChecking=no opc@129.151.129.121`
+- **SSH key:** `/Users/paulwinick/Documents/Projects/ids/ssh-key-2026-07-02.key` (not committed)
+- **SSH:** `ssh -i /Users/paulwinick/Documents/Projects/ids/ssh-key-2026-07-02.key -o StrictHostKeyChecking=no opc@129.151.129.121`
 - **Region:** UAE Central (Abu Dhabi) / me-abudhabi-1
 - **Scripts on VM:** `~/nama_monitor.py`, `~/scraper_api.py`
 - **Log:** `~/nama_monitor.log`

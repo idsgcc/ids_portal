@@ -42,12 +42,26 @@ function IconTruck() {
   );
 }
 
+function IconChart() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+    </svg>
+  );
+}
+
 const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; description: string; icon: ReactNode; module: string }[] }[] = [
+  {
+    heading: "Finance",
+    cards: [
+      { href: "/dashboard", title: "Dashboard", description: "Invoices paid and outstanding across all projects.", icon: <IconChart />, module: "dashboard" },
+    ],
+  },
   {
     heading: "Projects",
     cards: [
       { href: "/projects", title: "Project Tracking", description: "Track post-award project stages, tasks, and progress.", icon: <IconFolders />, module: "projects" },
-      { href: "/tenders", title: "Tender Monitoring", description: "Track live tenders from the Nama iSupplier portal.", icon: <IconClipboard />, module: "tenders" },
+      { href: "/tenders", title: "Tender Monitoring", description: "Track live tenders from the Nama and OETC iSupplier portals.", icon: <IconClipboard />, module: "tenders" },
     ],
   },
   {
@@ -90,27 +104,27 @@ export default async function Home() {
     <main className="min-h-screen p-8">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-1">Operations Portal</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mb-10">Internal tools for IDS-GCC</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Internal tools for IDS-GCC</p>
 
-        <div className="space-y-10">
+        <div className="space-y-6">
           {sections.map((section) => (
             <section key={section.heading}>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
                 {section.heading}
               </h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {section.cards.map((card) => (
                   <a
                     key={card.href}
                     href={card.href}
-                    className="flex items-start gap-4 bg-gray-50 dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
+                    className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 rounded-lg px-4 py-3 border border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
                   >
-                    <div className="mt-0.5 text-gray-400 dark:text-gray-500 shrink-0">
+                    <div className="text-gray-400 dark:text-gray-500 shrink-0">
                       {card.icon}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-base">{card.title}</h3>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{card.description}</p>
+                      <h3 className="font-semibold text-sm">{card.title}</h3>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{card.description}</p>
                     </div>
                   </a>
                 ))}
