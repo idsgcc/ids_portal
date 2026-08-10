@@ -35,7 +35,7 @@ interface EditForm {
 const CURRENCIES = ["AED", "USD", "EUR", "GBP", "OMR"];
 
 const CLIENT_STATUSES = ["pending", "submitted", "paid"];
-const SUPPLIER_STATUSES = ["received", "paid"];
+const SUPPLIER_STATUSES = ["pending", "received", "paid"];
 
 const STATUS_STYLES: Record<string, string> = {
   pending:   "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",

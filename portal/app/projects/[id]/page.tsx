@@ -100,6 +100,7 @@ const CLIENT_INV_STATUSES = [
   { value: "paid",      label: "Paid",      color: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" },
 ];
 const SUPPLIER_INV_STATUSES = [
+  { value: "pending",  label: "Pending",  color: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" },
   { value: "received", label: "Received", color: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" },
   { value: "paid",     label: "Paid",     color: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" },
 ];
@@ -1128,7 +1129,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Invoices</span>
                     <span className="text-xs text-gray-400 dark:text-gray-500">received from supplier</span>
                   </div>
-                  <button onClick={() => { setAddInvoiceForm({ ...EMPTY_INV, status: "received" }); setAddingInvoice("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive Invoice</button>
+                  <button onClick={() => { setAddInvoiceForm({ ...EMPTY_INV, status: "pending" }); setAddingInvoice("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive Invoice</button>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
