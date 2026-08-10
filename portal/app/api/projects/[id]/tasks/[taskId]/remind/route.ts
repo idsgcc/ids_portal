@@ -45,7 +45,8 @@ export async function POST(
     return NextResponse.json({ error: "Could not find assignee email" }, { status: 400 });
   }
 
-  const project = (task.project_plan as { project: { id: string; name: string; client_name: string } } | null)?.project;
+  const planArr = task.project_plan as unknown as { project: { id: string; name: string; client_name: string }[] }[];
+  const project = planArr?.[0]?.project?.[0] ?? null;
   const projectName = project?.name ?? "a project";
   const projectUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://ids-portal-gold.vercel.app"}/projects/${projectId}`;
   const dueDate = fmtDate(task.planned_finish);
