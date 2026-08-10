@@ -873,10 +873,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 +
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); sendReminder(task.id); }}
-                                className={`text-xs px-2 py-1 rounded-lg shrink-0 transition-colors ${reminderSent === task.id ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"}`}
+                                disabled
+                                className="text-xs px-2 py-1 rounded-lg shrink-0 bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed"
                               >
-                                {reminderSent === task.id ? "✓ Sent" : "Remind"}
+                                Remind
                               </button>
                             </>
                           )}
