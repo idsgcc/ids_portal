@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const INV_SELECT = "id, invoice_number, party_type, contractor_id, supplier_id, supplier_name, purchase_order_id, amount, currency, status, invoice_date, due_date, paid_date, notes, created_at, contractor:contractors!contractor_id(id,name), supplier:suppliers!supplier_id(id,name)";
+const INV_SELECT = "id, invoice_number, party_type, contractor_id, supplier_id, supplier_name, purchase_order_id, amount, currency, status, invoice_date, due_date, paid_date, notes, milestone, created_at, contractor:contractors!contractor_id(id,name), supplier:suppliers!supplier_id(id,name)";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const { party_type, contractor_id, supplier_id, invoice_number, purchase_order_id, amount, currency, status, invoice_date, due_date, paid_date, notes } = body;
+  const { party_type, contractor_id, supplier_id, invoice_number, purchase_order_id, amount, currency, status, invoice_date, due_date, paid_date, notes, milestone } = body;
   if (!invoice_number || !party_type) {
     return NextResponse.json({ error: "invoice_number and party_type required" }, { status: 400 });
   }
@@ -38,6 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       due_date: due_date || null,
       paid_date: paid_date || null,
       notes: notes || null,
+      milestone: milestone || null,
     })
     .select(INV_SELECT)
     .single();
