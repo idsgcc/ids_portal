@@ -1032,13 +1032,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <button onClick={() => { setAddPOForm(EMPTY_PO); setAddingPO("client"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive PO</button>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                  <div className="grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_80px] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
                     {["PO #", "Client", "Description", "Amount", "Status", "Issued", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
                   </div>
                   {pos.filter((p) => p.party_type === "client").length === 0 ? (
                     <p className="text-xs text-gray-400 px-4 py-4">No client purchase orders yet.</p>
                   ) : pos.filter((p) => p.party_type === "client").map((po, i, arr) => (
-                    <div key={po.id} className={`grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                    <div key={po.id} className={`grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_80px] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
                       <span className="text-sm font-medium min-w-0 truncate">{po.po_number}</span>
                       <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{po.contractor?.name ?? po.supplier_name ?? "—"}</span>
                       <span className="text-xs text-gray-500 min-w-0 truncate">{po.description ?? "—"}</span>
@@ -1104,13 +1104,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <button onClick={() => { setAddPOForm(EMPTY_PO); setAddingPO("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Issue PO</button>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                  <div className="grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_80px] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
                     {["PO #", "Supplier", "Description", "Amount", "Status", "Issued", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
                   </div>
                   {pos.filter((p) => p.party_type === "supplier").length === 0 ? (
                     <p className="text-xs text-gray-400 px-4 py-4">No supplier purchase orders yet.</p>
                   ) : pos.filter((p) => p.party_type === "supplier").map((po, i, arr) => (
-                    <div key={po.id} className={`grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                    <div key={po.id} className={`grid grid-cols-[1fr_1.2fr_1.5fr_1fr_1fr_1fr_80px] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
                       <span className="text-sm font-medium min-w-0 truncate">{po.po_number}</span>
                       <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{po.supplier?.name ?? po.supplier_name ?? "—"}</span>
                       <span className="text-xs text-gray-500 min-w-0 truncate">{po.description ?? "—"}</span>
