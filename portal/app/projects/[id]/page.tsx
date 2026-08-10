@@ -1064,14 +1064,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <button onClick={() => { setAddInvoiceForm({ ...EMPTY_INV, status: "pending" }); setAddingInvoice("client"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Issue Invoice</button>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                  <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_80px] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
                     {["Invoice #", "Client", "Milestone", "Amount", "Status", "Inv. Date", "Due Date", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
                   </div>
                   {invoices.filter((inv) => inv.party_type === "client").length === 0 ? (
                     <p className="text-xs text-gray-400 px-4 py-4">No client invoices yet.</p>
                   ) : invoices.filter((inv) => inv.party_type === "client").map((inv, i, arr) => {
                     return (
-                      <div key={inv.id} className={`grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                      <div key={inv.id} className={`grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_80px] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
                         <span className="text-sm font-medium min-w-0 truncate">{inv.invoice_number}</span>
                         <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{inv.contractor?.name ?? inv.supplier_name ?? "—"}</span>
                         <span className="text-xs text-gray-500 min-w-0 truncate">{inv.milestone ?? "—"}</span>
@@ -1136,14 +1136,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <button onClick={() => { setAddInvoiceForm({ ...EMPTY_INV, status: "pending" }); setAddingInvoice("supplier"); }} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">+ Receive Invoice</button>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
+                  <div className="grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_80px] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-3">
                     {["Invoice #", "Supplier", "Milestone", "Amount", "Status", "Inv. Date", "Due Date", ""].map((h) => <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>)}
                   </div>
                   {invoices.filter((inv) => inv.party_type === "supplier").length === 0 ? (
                     <p className="text-xs text-gray-400 px-4 py-4">No supplier invoices yet.</p>
                   ) : invoices.filter((inv) => inv.party_type === "supplier").map((inv, i, arr) => {
                     return (
-                      <div key={inv.id} className={`grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
+                      <div key={inv.id} className={`grid grid-cols-[1fr_1.2fr_1fr_1fr_1fr_1fr_1fr_80px] items-center px-4 py-3 gap-3 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}>
                         <span className="text-sm font-medium min-w-0 truncate">{inv.invoice_number}</span>
                         <span className="text-sm text-gray-600 dark:text-gray-400 min-w-0 truncate">{inv.supplier?.name ?? inv.supplier_name ?? "—"}</span>
                         <span className="text-xs text-gray-500 min-w-0 truncate">{inv.milestone ?? "—"}</span>
