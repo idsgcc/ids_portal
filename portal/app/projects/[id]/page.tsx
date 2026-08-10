@@ -1080,7 +1080,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <span className="text-xs text-gray-500">{inv.invoice_date ? fmtDate(inv.invoice_date) : "—"}</span>
                         <span className="text-xs text-gray-500">{inv.due_date ? fmtDate(inv.due_date) : "—"}</span>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-400 hover:text-blue-500 transition-colors px-1" title="Edit">✏</button>
+                          <button onClick={() => openEditInvoice(inv)} className="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium" title="Edit">Edit</button>
                           <button onClick={() => deleteInvoice(inv.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1" title="Delete">✕</button>
                         </div>
                       </div>
@@ -1152,7 +1152,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <span className="text-xs text-gray-500">{inv.invoice_date ? fmtDate(inv.invoice_date) : "—"}</span>
                         <span className="text-xs text-gray-500">{inv.due_date ? fmtDate(inv.due_date) : "—"}</span>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-400 hover:text-blue-500 transition-colors px-1" title="Edit">✏</button>
+                          <button onClick={() => openEditInvoice(inv)} className="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium" title="Edit">Edit</button>
                           <button onClick={() => deleteInvoice(inv.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors px-1" title="Delete">✕</button>
                         </div>
                       </div>
