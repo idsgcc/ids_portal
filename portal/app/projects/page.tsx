@@ -306,8 +306,8 @@ export default function ProjectsPage() {
 
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   {/* Table header */}
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr] bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2">
-                    {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", "Overdue Invoice"].map((h) => (
+                  <div className={`grid ${isReadOnly ? "grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr]" : "grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr]"} bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2`}>
+                    {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", ...(!isReadOnly ? ["Overdue Invoice"] : [])].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
                   </div>
@@ -321,7 +321,7 @@ export default function ProjectsPage() {
                     return (
                       <div
                         key={p.id}
-                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr] items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
+                        className={`grid ${isReadOnly ? "grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr]" : "grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr]"} items-center px-4 py-3 gap-2 transition-colors ${rowTint} hover:brightness-95 ${i < items.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
                       >
                         <Link href={`/projects/${p.id}`} className="font-medium text-sm hover:text-blue-600 dark:hover:text-blue-400 truncate">
                           {p.name}
@@ -396,20 +396,22 @@ export default function ProjectsPage() {
                             </div>
                           ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                         </div>
-                        <div className="min-w-0">
-                          {overdueInv ? (() => {
-                            const daysOverdue = Math.floor((Date.now() - new Date(overdueInv.due_date!).getTime()) / 86400000);
-                            const amt = fmtAmount(overdueInv.amount, overdueInv.currency);
-                            return (
-                              <div>
-                                <span className="text-xs font-medium text-red-600 dark:text-red-400 truncate block">{overdueInv.invoice_number}</span>
-                                <span className="text-xs text-red-500 dark:text-red-400">
-                                  {amt ? `${amt} · ` : ""}{daysOverdue}d overdue
-                                </span>
-                              </div>
-                            );
-                          })() : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
-                        </div>
+                        {!isReadOnly && (
+                          <div className="min-w-0">
+                            {overdueInv ? (() => {
+                              const daysOverdue = Math.floor((Date.now() - new Date(overdueInv.due_date!).getTime()) / 86400000);
+                              const amt = fmtAmount(overdueInv.amount, overdueInv.currency);
+                              return (
+                                <div>
+                                  <span className="text-xs font-medium text-red-600 dark:text-red-400 truncate block">{overdueInv.invoice_number}</span>
+                                  <span className="text-xs text-red-500 dark:text-red-400">
+                                    {amt ? `${amt} · ` : ""}{daysOverdue}d overdue
+                                  </span>
+                                </div>
+                              );
+                            })() : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
