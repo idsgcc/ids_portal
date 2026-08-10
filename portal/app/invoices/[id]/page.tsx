@@ -14,6 +14,7 @@ interface Invoice {
   due_date: string | null;
   paid_date: string | null;
   notes: string | null;
+  milestone: string | null;
   supplier_name: string | null;
   project: { id: string; name: string } | null;
   contractor: { id: string; name: string; email: string | null; phone: string | null } | null;
@@ -30,6 +31,7 @@ interface EditForm {
   due_date: string;
   paid_date: string;
   notes: string;
+  milestone: string;
 }
 
 const CURRENCIES = ["AED", "USD", "EUR", "GBP", "OMR"];
@@ -119,6 +121,7 @@ export default function InvoicePage() {
       due_date: invoice.due_date?.slice(0, 10) ?? "",
       paid_date: invoice.paid_date?.slice(0, 10) ?? "",
       notes: invoice.notes ?? "",
+      milestone: invoice.milestone ?? "",
     });
     setEditing(true);
   }
@@ -154,6 +157,7 @@ export default function InvoicePage() {
         due_date: form.due_date || null,
         paid_date: form.paid_date || null,
         notes: form.notes || null,
+        milestone: form.milestone || null,
       };
       const res = await fetch(`/api/invoices/${id}`, {
         method: "PATCH",
@@ -254,6 +258,9 @@ export default function InvoicePage() {
                     <Input type="date" value={form.paid_date} onChange={v => setForm(f => f && ({ ...f, paid_date: v }))} />
                   </Field>
                 </div>
+                <Field label="Milestone">
+                  <Input value={form.milestone} onChange={v => setForm(f => f && ({ ...f, milestone: v }))} placeholder="e.g. FAT Completion" />
+                </Field>
                 <Field label="Notes">
                   <textarea
                     value={form.notes}
@@ -314,6 +321,11 @@ export default function InvoicePage() {
                   </Field>
                   <Field label="Paid Date">{fmtDate(invoice.paid_date)}</Field>
                 </div>
+                {invoice.milestone && (
+                  <Field label="Milestone">
+                    <p className="text-gray-700 dark:text-gray-300">{invoice.milestone}</p>
+                  </Field>
+                )}
                 {invoice.notes && (
                   <Field label="Notes">
                     <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{invoice.notes}</p>
