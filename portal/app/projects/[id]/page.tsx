@@ -425,9 +425,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
-  function sendReminder(taskId: string) {
-    setReminderSent(taskId);
-    setTimeout(() => setReminderSent(null), 3000);
+  async function sendReminder(taskId: string) {
+    const res = await fetch(`/api/projects/${id}/tasks/${taskId}/remind`, { method: "POST" });
+    if (res.ok) {
+      setReminderSent(taskId);
+      setTimeout(() => setReminderSent(null), 3000);
+    } else {
+      const { error } = await res.json();
+      alert(`Could not send reminder: ${error}`);
+    }
   }
 
   // PO actions
