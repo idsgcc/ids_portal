@@ -15,6 +15,7 @@ const NAV_ITEMS = [
     { label: "Employees", href: "/employees", module: "employees" },
   ]},
   { group: "Contacts", items: [
+    { label: "Contacts", href: "/contacts", module: "contacts" },
     { label: "Contractors", href: "/contractors", module: "contractors" },
     { label: "Suppliers", href: "/suppliers", module: "suppliers" },
   ]},

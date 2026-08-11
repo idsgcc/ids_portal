@@ -1,0 +1,22 @@
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+
+export async function GET() {
+  const PAGE = 1000;
+  const all: Record<string, unknown>[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from("contacts")
+      .select("id, name, company_name, title, phone, email")
+      .order("name")
+      .range(from, from + PAGE - 1);
+    if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+    all.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  return NextResponse.json(all);
+}

@@ -42,6 +42,17 @@ function IconTruck() {
   );
 }
 
+function IconAddressBook() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 6h2"/><path d="M2 10h2"/><path d="M2 14h2"/><path d="M2 18h2"/>
+      <rect x="4" y="2" width="16" height="20" rx="2"/>
+      <circle cx="12" cy="10" r="3"/>
+      <path d="M7 20c0-2.21 2.24-4 5-4s5 1.79 5 4"/>
+    </svg>
+  );
+}
+
 function IconChart() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -73,6 +84,7 @@ const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; des
   {
     heading: "Contacts",
     cards: [
+      { href: "/contacts", title: "Contacts", description: "Search and browse all contacts.", icon: <IconAddressBook />, module: "contacts" },
       { href: "/contractors", title: "Contractors", description: "View and manage contractor company details.", icon: <IconBuilding />, module: "contractors" },
       { href: "/suppliers", title: "Suppliers", description: "View and manage supplier company details.", icon: <IconTruck />, module: "suppliers" },
     ],
