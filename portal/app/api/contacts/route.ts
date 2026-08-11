@@ -20,3 +20,15 @@ export async function GET() {
 
   return NextResponse.json(all);
 }
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const { name, company_name, title, phone, email } = body;
+  const { data, error } = await supabaseAdmin
+    .from("contacts")
+    .insert({ name: name || null, company_name: company_name || null, title: title || null, phone: phone || null, email: email || null })
+    .select("id, name, company_name, title, phone, email")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+  return NextResponse.json(data, { status: 201 });
+}
