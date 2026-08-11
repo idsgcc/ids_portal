@@ -253,12 +253,13 @@ export default function ContactsPage() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-            <div className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_auto] gap-4 px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">
+            <div className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_1fr_8rem] gap-4 px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">
               <div />
               <div>Name</div>
               <div>Company</div>
               <div>Title</div>
               <div>Phone</div>
+              <div>Mobile</div>
               <div>Email</div>
               <div />
             </div>
@@ -269,33 +270,37 @@ export default function ContactsPage() {
                 return (
                   <div
                     key={c.id}
-                    className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_auto] gap-4 items-center px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group"
+                    onClick={() => router.push(`/contacts/${c.id}`)}
+                    className="grid grid-cols-[2rem_1fr_1fr_1fr_1fr_1fr_1fr_8rem] gap-4 items-center px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group cursor-pointer"
                   >
-                    <a href={`/contacts/${c.id}`} className="contents">
-                      <div className={`w-8 h-8 rounded-lg ${avatarColor(label)} flex items-center justify-center text-white font-bold text-[10px] shrink-0`}>
-                        {initials(label)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{c.name || <span className="text-gray-400">—</span>}</p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{c.company_name || <span className="text-gray-300 dark:text-gray-600">—</span>}</p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs text-gray-500 dark:text-gray-500 truncate">{c.title || <span className="text-gray-300 dark:text-gray-600">—</span>}</p>
-                      </div>
-                      <div className="min-w-0">
-                        {c.phone
-                          ? <span className="text-xs text-blue-600 dark:text-blue-400 truncate block">{c.phone}</span>
-                          : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
-                      </div>
-                      <div className="min-w-0">
-                        {c.email
-                          ? <span className="text-xs text-blue-600 dark:text-blue-400 truncate block">{c.email}</span>
-                          : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
-                      </div>
-                    </a>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className={`w-8 h-8 rounded-lg ${avatarColor(label)} flex items-center justify-center text-white font-bold text-[10px] shrink-0`}>
+                      {initials(label)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{c.name || <span className="text-gray-400">—</span>}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{c.company_name || <span className="text-gray-300 dark:text-gray-600">—</span>}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500 dark:text-gray-500 truncate">{c.title || <span className="text-gray-300 dark:text-gray-600">—</span>}</p>
+                    </div>
+                    <div className="min-w-0">
+                      {c.phone
+                        ? <span className="text-xs text-blue-600 dark:text-blue-400 truncate block">{c.phone}</span>
+                        : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                    </div>
+                    <div className="min-w-0">
+                      {c.mobile
+                        ? <span className="text-xs text-blue-600 dark:text-blue-400 truncate block">{c.mobile}</span>
+                        : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                    </div>
+                    <div className="min-w-0">
+                      {c.email
+                        ? <span className="text-xs text-blue-600 dark:text-blue-400 truncate block">{c.email}</span>
+                        : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                       {isConfirming ? (
                         <>
                           <span className="text-xs text-gray-500 dark:text-gray-400 mr-1 whitespace-nowrap">Delete?</span>
