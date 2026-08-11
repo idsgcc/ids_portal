@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 
 type Contact = {
   id: string;
@@ -164,6 +165,21 @@ export default function ContactsPage() {
     setModalOpen(false);
   }
 
+  function exportToExcel() {
+    const rows = filtered.map((c) => ({
+      Name: c.name ?? "",
+      Company: c.company_name ?? "",
+      Title: c.title ?? "",
+      Phone: c.phone ?? "",
+      Email: c.email ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contacts");
+    const filename = query.trim() ? `contacts_${query.trim().replace(/\s+/g, "_")}.xlsx` : "contacts.xlsx";
+    XLSX.writeFile(wb, filename);
+  }
+
   async function deleteContact(id: string) {
     setDeleting(true);
     await fetch(`/api/contacts/${id}`, { method: "DELETE" });
@@ -194,12 +210,21 @@ export default function ContactsPage() {
               {loading ? "Loading…" : `${contacts.length.toLocaleString()} contacts`}
             </p>
           </div>
-          <button
-            onClick={openAdd}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
-          >
-            Add Contact
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToExcel}
+              disabled={loading || filtered.length === 0}
+              className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
+            >
+              Export{query.trim() ? ` (${filtered.length})` : ""} ↓
+            </button>
+            <button
+              onClick={openAdd}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+            >
+              Add Contact
+            </button>
+          </div>
         </div>
 
         <div className="relative mb-6">
