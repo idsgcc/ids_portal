@@ -5,7 +5,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const { data, error } = await supabaseAdmin
     .from("contacts")
-    .select("id, name, company_name, title, phone, email")
+    .select("id, name, company_name, title, phone, mobile, email")
     .eq("id", id)
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
@@ -15,12 +15,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const { name, company_name, title, phone, email } = body;
+  const { name, company_name, title, phone, mobile, email } = body;
   const { data, error } = await supabaseAdmin
     .from("contacts")
-    .update({ name: name || null, company_name: company_name || null, title: title || null, phone: phone || null, email: email || null })
+    .update({ name: name || null, company_name: company_name || null, title: title || null, phone: phone || null, mobile: mobile || null, email: email || null })
     .eq("id", id)
-    .select("id, name, company_name, title, phone, email")
+    .select("id, name, company_name, title, phone, mobile, email")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
   return NextResponse.json(data);

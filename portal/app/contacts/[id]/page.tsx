@@ -10,10 +10,11 @@ type Contact = {
   company_name: string | null;
   title: string | null;
   phone: string | null;
+  mobile: string | null;
   email: string | null;
 };
 
-type FormState = { name: string; company_name: string; title: string; phone: string; email: string };
+type FormState = { name: string; company_name: string; title: string; phone: string; mobile: string; email: string };
 
 const AVATAR_COLORS = [
   "bg-blue-600", "bg-indigo-600", "bg-violet-600",
@@ -38,7 +39,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<FormState>({ name: "", company_name: "", title: "", phone: "", email: "" });
+  const [form, setForm] = useState<FormState>({ name: "", company_name: "", title: "", phone: "", mobile: "", email: "" });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -57,6 +58,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
       company_name: contact.company_name ?? "",
       title: contact.title ?? "",
       phone: contact.phone ?? "",
+      mobile: contact.mobile ?? "",
       email: contact.email ?? "",
     });
     setSaveError(null);
@@ -131,13 +133,13 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
 
         {editing ? (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-3">
-            {(["name", "company_name", "title", "phone", "email"] as const).map((field) => (
+            {(["name", "company_name", "title", "phone", "mobile", "email"] as const).map((field) => (
               <div key={field}>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                   {field === "company_name" ? "Company" : field.charAt(0).toUpperCase() + field.slice(1)}
                 </label>
                 <input
-                  type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
+                  type={field === "email" ? "email" : field === "phone" || field === "mobile" ? "tel" : "text"}
                   value={form[field]}
                   onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
                   onKeyDown={(e) => e.key === "Enter" && save()}
@@ -162,6 +164,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
               { label: "Company", value: contact.company_name },
               { label: "Title", value: contact.title },
               { label: "Phone", value: contact.phone, href: contact.phone ? `tel:${contact.phone}` : undefined },
+              { label: "Mobile", value: contact.mobile, href: contact.mobile ? `tel:${contact.mobile}` : undefined },
               { label: "Email", value: contact.email, href: contact.email ? `mailto:${contact.email}` : undefined },
             ].map(({ label, value, href }) => (
               <div key={label} className="flex justify-between items-center px-5 py-3 border-b border-gray-100 dark:border-gray-800 last:border-0">

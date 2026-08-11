@@ -11,12 +11,13 @@ type Contact = {
   company_name: string | null;
   title: string | null;
   phone: string | null;
+  mobile: string | null;
   email: string | null;
 };
 
-type FormState = { name: string; company_name: string; title: string; phone: string; email: string };
+type FormState = { name: string; company_name: string; title: string; phone: string; mobile: string; email: string };
 
-const EMPTY_FORM: FormState = { name: "", company_name: "", title: "", phone: "", email: "" };
+const EMPTY_FORM: FormState = { name: "", company_name: "", title: "", phone: "", mobile: "", email: "" };
 
 const AVATAR_COLORS = [
   "bg-blue-600", "bg-indigo-600", "bg-violet-600",
@@ -41,6 +42,7 @@ function matches(c: Contact, q: string): boolean {
     (c.company_name?.toLowerCase().includes(s) ?? false) ||
     (c.title?.toLowerCase().includes(s) ?? false) ||
     (c.phone?.toLowerCase().includes(s) ?? false) ||
+    (c.mobile?.toLowerCase().includes(s) ?? false) ||
     (c.email?.toLowerCase().includes(s) ?? false)
   );
 }
@@ -61,6 +63,7 @@ function ContactModal({
       company_name: contact.company_name ?? "",
       title: contact.title ?? "",
       phone: contact.phone ?? "",
+      mobile: contact.mobile ?? "",
       email: contact.email ?? "",
     }
   );
@@ -100,14 +103,14 @@ function ContactModal({
           </button>
         </div>
         <div className="px-6 py-4 space-y-3">
-          {(["name", "company_name", "title", "phone", "email"] as const).map((field, i) => (
+          {(["name", "company_name", "title", "phone", "mobile", "email"] as const).map((field, i) => (
             <div key={field}>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 capitalize">
                 {field === "company_name" ? "Company" : field.charAt(0).toUpperCase() + field.slice(1)}
               </label>
               <input
                 ref={i === 0 ? firstRef : undefined}
-                type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
+                type={field === "email" ? "email" : field === "phone" || field === "mobile" ? "tel" : "text"}
                 value={form[field]}
                 onChange={(e) => set(field, e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && save()}
@@ -171,6 +174,7 @@ export default function ContactsPage() {
       Company: c.company_name ?? "",
       Title: c.title ?? "",
       Phone: c.phone ?? "",
+      Mobile: c.mobile ?? "",
       Email: c.email ?? "",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);

@@ -9,7 +9,7 @@ export async function GET() {
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("contacts")
-      .select("id, name, company_name, title, phone, email")
+      .select("id, name, company_name, title, phone, mobile, email")
       .order("name")
       .range(from, from + PAGE - 1);
     if (error) return NextResponse.json({ error: error.message }, { status: 502 });
@@ -23,11 +23,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { name, company_name, title, phone, email } = body;
+  const { name, company_name, title, phone, mobile, email } = body;
   const { data, error } = await supabaseAdmin
     .from("contacts")
-    .insert({ name: name || null, company_name: company_name || null, title: title || null, phone: phone || null, email: email || null })
-    .select("id, name, company_name, title, phone, email")
+    .insert({ name: name || null, company_name: company_name || null, title: title || null, phone: phone || null, mobile: mobile || null, email: email || null })
+    .select("id, name, company_name, title, phone, mobile, email")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
   return NextResponse.json(data, { status: 201 });
