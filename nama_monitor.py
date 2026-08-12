@@ -15,13 +15,29 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 SUPABASE_URL  = os.environ.get("SUPABASE_URL", "https://rwokkfbwksmdcjcbyyhw.supabase.co")
 SUPABASE_KEY  = os.environ.get("SUPABASE_KEY", "")
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 TENDER_URL    = "https://isupplier.nama.om:4443/OA_HTML/OA.jsp?OAFunc=TENNEDC"
+ALERT_EMAIL   = "paul.winick@ids-gcc.com"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
     "Content-Type": "application/json",
 }
+
+
+def send_error_email(subject, body):
+    if not RESEND_API_KEY:
+        return
+    try:
+        requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json={"from": "onboarding@resend.dev", "to": ALERT_EMAIL, "subject": subject, "text": body},
+            timeout=15,
+        )
+    except Exception as e:
+        print(f"Alert email failed: {e}", file=sys.stderr)
 
 
 def parse_date(s):
@@ -106,6 +122,7 @@ def write_log(run_time, tenders_found, new_tenders, status, notes=""):
         "tenders_found": tenders_found,
         "new_tenders":   new_tenders,
         "status":        status,
+        "source":        "nama",
     }
     if notes:
         record["notes"] = notes
@@ -125,6 +142,10 @@ def main():
         msg = f"Portal fetch failed: {e}"
         print(msg, file=sys.stderr)
         write_log(run_time, 0, 0, "Error", msg)
+        send_error_email(
+            "Nama Scraper Error",
+            f"The Nama tender scraper failed at {run_time.strftime('%Y-%m-%d %H:%M UTC')}.\n\nError: {msg}\n\nPortal: https://ids-portal-gold.vercel.app/tenders",
+        )
         sys.exit(0)
 
     if not tenders:

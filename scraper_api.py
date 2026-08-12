@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import subprocess
+import threading
 import os
 from flask import Flask, request, jsonify
 
@@ -10,32 +11,30 @@ NAMA_SCRIPT  = "/home/opc/nama_monitor.py"
 OETC_SCRIPT  = "/home/opc/oetc_monitor.py"
 
 
-def run_script(script_path):
+def _run_in_background(script_path):
+    try:
+        subprocess.run(["python3", script_path], timeout=300)
+    except Exception:
+        pass
+
+
+def trigger_script(script_path):
     auth = request.headers.get("Authorization", "")
     if not SECRET_TOKEN or auth != f"Bearer {SECRET_TOKEN}":
         return jsonify({"error": "Unauthorized"}), 401
-    try:
-        result = subprocess.run(
-            ["python3", script_path],
-            capture_output=True, text=True, timeout=60
-        )
-        return jsonify({
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
-            "exit_code": result.returncode,
-        })
-    except subprocess.TimeoutExpired:
-        return jsonify({"error": "Scraper timed out"}), 504
+    t = threading.Thread(target=_run_in_background, args=(script_path,), daemon=True)
+    t.start()
+    return jsonify({"status": "started"}), 202
 
 
 @app.route("/run-scraper", methods=["POST"])
 def run_scraper():
-    return run_script(NAMA_SCRIPT)
+    return trigger_script(NAMA_SCRIPT)
 
 
 @app.route("/run-scraper-oetc", methods=["POST"])
 def run_scraper_oetc():
-    return run_script(OETC_SCRIPT)
+    return trigger_script(OETC_SCRIPT)
 
 
 @app.route("/health", methods=["GET"])

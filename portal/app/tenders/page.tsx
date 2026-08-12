@@ -143,21 +143,50 @@ export default function TendersPage() {
       });
   }, []);
 
-  async function runScraper(endpoint: string, setRunning: (v: boolean) => void, setResult: (v: ScraperResult) => void, setLastRun: (v: LastRun) => void) {
+  async function runScraper(
+    endpoint: string,
+    logKey: "nama" | "oetc",
+    setRunning: (v: boolean) => void,
+    setResult: (v: ScraperResult) => void,
+    setLastRun: (v: LastRun) => void,
+  ) {
     setRunning(true);
     setResult(null as unknown as ScraperResult);
+
+    let priorRunTime: string | null = null;
+    try {
+      const logBefore = await fetch("/api/scraper-log").then((r) => r.json());
+      priorRunTime = logBefore[logKey]?.["Run Time"] ?? null;
+    } catch { /* ignore */ }
+
     try {
       const res = await fetch(endpoint, { method: "POST" });
       const data = await res.json();
-      setResult(data);
-      setTimeout(() => {
-        fetch("/api/scraper-log")
-          .then((r) => r.json())
-          .then((d) => {
-            setNamaLastRun(d.nama ?? null);
-            setOetcLastRun(d.oetc ?? null);
-          });
-      }, 2000);
+
+      if (res.status === 202 && data.status === "started") {
+        const deadline = Date.now() + 3 * 60 * 1000;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 3000));
+          try {
+            const log = await fetch("/api/scraper-log").then((r) => r.json());
+            const latest = log[logKey] as LastRun;
+            if (latest && latest["Run Time"] !== priorRunTime) {
+              setLastRun(latest);
+              if (latest["Status"] === "Error") {
+                setResult({ error: latest["Notes"] || "Scraper run failed" });
+              } else {
+                setResult({
+                  stdout: `Done — ${latest["New Tenders"] ?? 0} new tender(s) out of ${latest["Tenders Found"] ?? 0} found.`,
+                });
+              }
+              return;
+            }
+          } catch { /* keep polling */ }
+        }
+        setResult({ stdout: "Scraper started — check back in a moment for results." });
+      } else {
+        setResult(data);
+      }
     } catch (err) {
       setResult({ error: String(err) });
     } finally {
@@ -186,7 +215,7 @@ export default function TendersPage() {
               lastRun={namaLastRun}
               running={namaRunning}
               result={namaResult}
-              onRun={() => runScraper("/api/run-scraper", setNamaRunning, setNamaResult, setNamaLastRun)}
+              onRun={() => runScraper("/api/run-scraper", "nama", setNamaRunning, setNamaResult, setNamaLastRun)}
             />
           </div>
 
@@ -200,7 +229,7 @@ export default function TendersPage() {
               lastRun={oetcLastRun}
               running={oetcRunning}
               result={oetcResult}
-              onRun={() => runScraper("/api/run-scraper-oetc", setOetcRunning, setOetcResult, setOetcLastRun)}
+              onRun={() => runScraper("/api/run-scraper-oetc", "oetc", setOetcRunning, setOetcResult, setOetcLastRun)}
             />
           </div>
         </div>

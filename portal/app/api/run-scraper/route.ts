@@ -12,11 +12,11 @@ export async function POST() {
     const res = await fetch(`${url}/run-scraper`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(90_000),
+      signal: AbortSignal.timeout(15_000),
     });
 
     const data = await res.json();
-    return NextResponse.json(data, { status: res.ok ? 200 : 502 });
+    return NextResponse.json(data, { status: res.status });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 502 });
   }
