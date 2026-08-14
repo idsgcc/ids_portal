@@ -8,6 +8,7 @@ type Opportunity = {
   name: string;
   status: string;
   notes: string | null;
+  close_date: string | null;
   created_at: string;
   client_id: string | null;
   contractor_id: string | null;
@@ -35,7 +36,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 const STATUS_ORDER = ["in_progress", "awarded", "lost", "cancelled"];
 
-const EMPTY = { name: "", client_id: "", contractor_id: "", status: "in_progress", notes: "" };
+const EMPTY = { name: "", client_id: "", contractor_id: "", status: "in_progress", notes: "", close_date: "" };
 type FormData = typeof EMPTY;
 
 export default function OpportunitiesPage() {
@@ -79,6 +80,7 @@ export default function OpportunitiesPage() {
       contractor_id: opp.contractor_id ?? "",
       status: opp.status,
       notes: opp.notes ?? "",
+      close_date: opp.close_date ?? "",
     });
     setEditing(opp);
     setAwardWarn(false);
@@ -100,6 +102,7 @@ export default function OpportunitiesPage() {
       contractor_id: form.contractor_id || null,
       status: form.status,
       notes: form.notes.trim() || null,
+      close_date: form.close_date || null,
     };
 
     if (modal === "add") {
@@ -211,6 +214,7 @@ export default function OpportunitiesPage() {
                   <div className="flex-1">Opportunity</div>
                   <div className="w-36 shrink-0 hidden sm:block">Client</div>
                   <div className="w-36 shrink-0 hidden sm:block">Contractor</div>
+                  <div className="w-24 shrink-0 hidden md:block">Close Date</div>
                   <div className="w-24 shrink-0 hidden sm:block">Status</div>
                   <div className="w-28 shrink-0" />
                 </div>
@@ -243,6 +247,17 @@ export default function OpportunitiesPage() {
                     <div className="w-36 shrink-0 hidden sm:block">
                       <span className="text-xs text-gray-600 dark:text-gray-400 truncate block">
                         {opp.contractor_name ?? "—"}
+                      </span>
+                    </div>
+                    <div className="w-24 shrink-0 hidden md:block">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                        {opp.close_date
+                          ? new Date(opp.close_date + "T00:00:00").toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
                       </span>
                     </div>
                     <div className="w-24 shrink-0 hidden sm:block">
@@ -379,6 +394,16 @@ export default function OpportunitiesPage() {
                     A Project will be automatically created from this opportunity with status &ldquo;Upcoming&rdquo;.
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Close Date</label>
+                <input
+                  type="date"
+                  value={form.close_date}
+                  onChange={(e) => setForm({ ...form, close_date: e.target.value })}
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
+                />
               </div>
 
               <div>

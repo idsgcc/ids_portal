@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const SELECT = `
-  id, name, status, notes, created_at, client_id, contractor_id, project_id,
+  id, name, status, notes, close_date, created_at, client_id, contractor_id, project_id,
   client:clients(id, name),
   contractor:contractors(id, name),
   project:projects(id, name)
@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { name, client_id, contractor_id, status, notes } = await req.json();
+  const { name, client_id, contractor_id, status, notes, close_date } = await req.json();
   if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
 
   const { data, error } = await supabaseAdmin
@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       contractor_id: contractor_id || null,
       status: status || "in_progress",
       notes: notes || null,
+      close_date: close_date || null,
     })
     .select(SELECT)
     .single();

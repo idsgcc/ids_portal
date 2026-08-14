@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const SELECT = `
-  id, name, status, notes, created_at, client_id, contractor_id, project_id,
+  id, name, status, notes, close_date, created_at, client_id, contractor_id, project_id,
   client:clients(id, name),
   contractor:contractors(id, name),
   project:projects(id, name)
@@ -28,7 +28,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const allowed = ["name", "client_id", "contractor_id", "status", "notes"];
+  const allowed = ["name", "client_id", "contractor_id", "status", "notes", "close_date"];
   const update: Record<string, unknown> = Object.fromEntries(
     Object.entries(body).filter(([k]) => allowed.includes(k))
   );
