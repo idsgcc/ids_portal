@@ -290,7 +290,11 @@ export default function CompaniesPage() {
           <div>
             <h1 className="text-2xl font-bold">Companies</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {loading ? "Loading…" : `${companies.length.toLocaleString()} companies`}
+              {loading
+                ? "Loading…"
+                : (query.trim() || roleFilter.size > 0)
+                  ? `${filtered.length.toLocaleString()} of ${companies.length.toLocaleString()} companies`
+                  : `${companies.length.toLocaleString()} companies`}
             </p>
           </div>
           <button
@@ -474,7 +478,7 @@ export default function CompaniesPage() {
                 );
               })}
             </div>
-            {query.trim() && (
+            {(query.trim() || roleFilter.size > 0) && (
               <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-400">
                 {filtered.length} of {companies.length.toLocaleString()} companies
               </div>

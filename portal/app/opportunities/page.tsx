@@ -19,6 +19,7 @@ type Opportunity = {
 };
 
 type DropdownItem = { id: string; name: string };
+type SortKey = "name" | "client_name" | "contractor_name" | "close_date" | "status";
 
 const STATUS_LABELS: Record<string, string> = {
   in_progress: "In Progress",
@@ -52,6 +53,10 @@ export default function OpportunitiesPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [awardWarn, setAwardWarn] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [filterClient, setFilterClient] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -135,15 +140,51 @@ export default function OpportunitiesPage() {
     setDeleting(false);
   }
 
-  const filtered = query.trim()
-    ? opportunities.filter(
-        (o) =>
-          o.name.toLowerCase().includes(query.toLowerCase()) ||
-          (o.client_name?.toLowerCase().includes(query.toLowerCase()) ?? false) ||
-          (o.contractor_name?.toLowerCase().includes(query.toLowerCase()) ?? false) ||
-          (o.notes?.toLowerCase().includes(query.toLowerCase()) ?? false)
-      )
-    : opportunities;
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
+  function sortItems(items: Opportunity[]) {
+    return [...items].sort((a, b) => {
+      const av: string | null =
+        sortKey === "name" ? a.name :
+        sortKey === "client_name" ? a.client_name :
+        sortKey === "contractor_name" ? a.contractor_name :
+        sortKey === "close_date" ? a.close_date :
+        a.status;
+      const bv: string | null =
+        sortKey === "name" ? b.name :
+        sortKey === "client_name" ? b.client_name :
+        sortKey === "contractor_name" ? b.contractor_name :
+        sortKey === "close_date" ? b.close_date :
+        b.status;
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+      const cmp = av.localeCompare(bv);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }
+
+  const filtered = opportunities.filter((o) => {
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      const textMatch =
+        o.name.toLowerCase().includes(q) ||
+        (o.client_name?.toLowerCase().includes(q) ?? false) ||
+        (o.contractor_name?.toLowerCase().includes(q) ?? false) ||
+        (o.notes?.toLowerCase().includes(q) ?? false);
+      if (!textMatch) return false;
+    }
+    if (filterClient && o.client_id !== filterClient) return false;
+    if (filterStatus && o.status !== filterStatus) return false;
+    return true;
+  });
 
   const grouped = STATUS_ORDER.map((s) => ({
     status: s,
@@ -174,22 +215,44 @@ export default function OpportunitiesPage() {
           </button>
         </div>
 
-        <div className="relative mb-8">
-          <input
-            type="search"
-            placeholder="Search by name, client, contractor, notes…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
-          />
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+          <div className="relative flex-1">
+            <input
+              type="search"
+              placeholder="Search by name, client, contractor, notes…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+          </div>
+          <select
+            value={filterClient}
+            onChange={(e) => setFilterClient(e.target.value)}
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500 text-gray-600 dark:text-gray-300"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-          </svg>
+            <option value="">All Clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-500 text-gray-600 dark:text-gray-300"
+          >
+            <option value="">All Statuses</option>
+            {STATUS_ORDER.map((s) => (
+              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+            ))}
+          </select>
         </div>
 
         {loading ? (
@@ -211,14 +274,24 @@ export default function OpportunitiesPage() {
               </p>
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">
                 <div className="flex items-center gap-4 px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                  <div className="flex-1">Opportunity</div>
-                  <div className="w-36 shrink-0 hidden sm:block">Client</div>
-                  <div className="w-36 shrink-0 hidden sm:block">Contractor</div>
-                  <div className="w-24 shrink-0 hidden md:block">Close Date</div>
-                  <div className="w-24 shrink-0 hidden sm:block">Status</div>
+                  {(["name", "client_name", "contractor_name", "close_date", "status"] as SortKey[]).map((k) => {
+                    const label = k === "name" ? "Opportunity" : k === "client_name" ? "Client" : k === "contractor_name" ? "Contractor" : k === "close_date" ? "Close Date" : "Status";
+                    const cls = k === "name" ? "flex-1" : k === "close_date" ? "w-24 shrink-0 hidden md:block" : k === "status" ? "w-24 shrink-0 hidden sm:block" : "w-36 shrink-0 hidden sm:block";
+                    const active = sortKey === k;
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => handleSort(k)}
+                        className={`${cls} flex items-center gap-0.5 text-left hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${active ? "text-indigo-500 dark:text-indigo-400" : ""}`}
+                      >
+                        {label}
+                        <span className="ml-0.5">{active ? (sortDir === "asc" ? "↑" : "↓") : ""}</span>
+                      </button>
+                    );
+                  })}
                   <div className="w-28 shrink-0" />
                 </div>
-                {group.items.map((opp) => (
+                {sortItems(group.items).map((opp) => (
                   <div
                     key={opp.id}
                     className="group flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors cursor-pointer"
