@@ -9,15 +9,18 @@ const NAV_ITEMS = [
   ]},
   { group: "Projects", items: [
     { label: "Project Tracking", href: "/projects", module: "projects" },
+    { label: "Opportunities", href: "/opportunities", module: "opportunities" },
     { label: "Tender Monitoring", href: "/tenders", module: "tenders" },
   ]},
   { group: "Employees", items: [
     { label: "Employees", href: "/employees", module: "employees" },
   ]},
   { group: "Contacts", items: [
-    { label: "Contacts", href: "/contacts", module: "contacts" },
+    { label: "Companies", href: "/companies", module: "companies" },
+    { label: "Clients", href: "/clients", module: "clients" },
     { label: "Contractors", href: "/contractors", module: "contractors" },
     { label: "Suppliers", href: "/suppliers", module: "suppliers" },
+    { label: "Contacts", href: "/contacts", module: "contacts" },
   ]},
   { group: "Settings", items: [
     { label: "Admin", href: "/admin", module: "admin" },

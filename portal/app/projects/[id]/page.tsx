@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type TemplateTask = { sequence_order: number; duration_days: number };
@@ -24,6 +25,7 @@ type Project = {
   id: string;
   name: string;
   client_name: string;
+  client_id: string | null;
   status: string;
   priority: string;
   awarded_date: string | null;
@@ -184,6 +186,7 @@ function GripIcon() {
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,7 +196,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState("");
   const [editingClientName, setEditingClientName] = useState(false);
-  const [clientNameValue, setClientNameValue] = useState("");
+  const [editingContractor, setEditingContractor] = useState(false);
+  const [editingAwardedDate, setEditingAwardedDate] = useState(false);
+  const [awardedDateValue, setAwardedDateValue] = useState("");
 
   // Drag state
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -221,6 +226,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [contractorsList, setContractorsList] = useState<Contractor[]>([]);
   const [suppliersList, setSuppliersList] = useState<SupplierEntity[]>([]);
+  const [clientsList, setClientsList] = useState<{ id: string; name: string }[]>([]);
+  const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
 
   // Edit financials
   const [editingPO, setEditingPO] = useState<PO | null>(null);
@@ -235,7 +243,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }, [insertState]);
 
   async function load() {
-    const [projRes, profilesRes, meRes, posRes, invRes, contractorsRes, suppliersRes] = await Promise.all([
+    const [projRes, profilesRes, meRes, posRes, invRes, contractorsRes, suppliersRes, clientsRes] = await Promise.all([
       fetch(`/api/projects/${id}`),
       fetch("/api/profiles"),
       fetch("/api/me"),
@@ -243,6 +251,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       fetch(`/api/projects/${id}/invoices`),
       fetch("/api/contractors"),
       fetch("/api/suppliers"),
+      fetch("/api/clients"),
     ]);
 
     const data: Project = await projRes.json();
@@ -250,13 +259,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     setTasks(data.project_plans?.flatMap((p) => p.project_tasks ?? []) ?? []);
     setLoading(false);
 
-    const [profiles, me, pos, invoices, allContractors, allSuppliers] = await Promise.all([
+    const [profiles, me, pos, invoices, allContractors, allSuppliers, allClients] = await Promise.all([
       profilesRes.json(),
       meRes.json(),
       posRes.json(),
       invRes.json(),
       contractorsRes.json(),
       suppliersRes.json(),
+      clientsRes.json(),
     ]);
 
     setProfiles(profiles);
@@ -268,6 +278,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       setInvoices(invoices);
       setContractorsList(allContractors.map((c: Contractor) => ({ id: c.id, name: c.name })));
       setSuppliersList(allSuppliers.map((s: SupplierEntity) => ({ id: s.id, name: s.name })));
+      setClientsList(allClients.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
     }
   }
 
@@ -303,15 +314,43 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     });
   }
 
-  async function saveClientName() {
-    const trimmed = clientNameValue.trim();
+  async function deleteProject() {
+    setDeletingProject(true);
+    await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    router.push("/projects");
+  }
+
+  async function saveClient(clientId: string) {
     setEditingClientName(false);
-    if (!trimmed || trimmed === project?.client_name) return;
-    setProject((p) => p ? { ...p, client_name: trimmed } : p);
+    if (!clientId || clientId === (project?.client_id ?? "")) return;
+    const client = clientsList.find((c) => c.id === clientId) ?? null;
+    setProject((p) => p ? { ...p, client_id: clientId, client_name: client?.name ?? p.client_name } : p);
     await fetch(`/api/projects/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_name: trimmed }),
+      body: JSON.stringify({ client_id: clientId }),
+    });
+  }
+
+  async function saveContractor(contractorId: string) {
+    setEditingContractor(false);
+    const contractor = contractorsList.find((c) => c.id === contractorId) ?? null;
+    setProject((p) => p ? { ...p, contractor } : p);
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contractor_id: contractorId || null }),
+    });
+  }
+
+  async function saveAwardedDate() {
+    const val = awardedDateValue || null;
+    setEditingAwardedDate(false);
+    setProject((p) => p ? { ...p, awarded_date: val } : p);
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ awarded_date: val }),
     });
   }
 
@@ -682,25 +721,75 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             )}
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 flex items-center gap-1 flex-wrap">
               {editingClientName ? (
-                <input
+                <select
                   autoFocus
                   className="bg-transparent border-b border-blue-500 focus:outline-none text-sm"
-                  value={clientNameValue}
-                  onChange={(e) => setClientNameValue(e.target.value)}
-                  onBlur={saveClientName}
-                  onKeyDown={(e) => { if (e.key === "Enter") saveClientName(); if (e.key === "Escape") setEditingClientName(false); }}
-                />
+                  value={project.client_id ?? ""}
+                  onChange={(e) => saveClient(e.target.value)}
+                  onBlur={() => setEditingClientName(false)}
+                >
+                  <option value="">— Select client —</option>
+                  {clientsList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               ) : (
                 <span
                   className={!isReadOnly ? "cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors" : ""}
-                  onClick={() => { if (isReadOnly) return; setClientNameValue(project.client_name); setEditingClientName(true); }}
+                  onClick={() => { if (isReadOnly) return; setEditingClientName(true); }}
                   title={isReadOnly ? undefined : "Click to edit"}
                 >
                   {project.client_name}
                 </span>
               )}
-              {project.contractor && ` · ${project.contractor.name}`}
-              {project.awarded_date && ` · Awarded ${fmtDate(project.awarded_date)}`}
+              {!isReadOnly ? (
+                <>
+                  <span className="opacity-40">·</span>
+                  {editingContractor ? (
+                    <select
+                      autoFocus
+                      className="bg-transparent border-b border-blue-500 focus:outline-none text-sm"
+                      value={project.contractor?.id ?? ""}
+                      onChange={(e) => saveContractor(e.target.value)}
+                      onBlur={() => setEditingContractor(false)}
+                    >
+                      <option value="">— No contractor —</option>
+                      {contractorsList.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  ) : (
+                    <span
+                      className={`cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors ${!project.contractor ? "opacity-40 italic" : ""}`}
+                      onClick={() => setEditingContractor(true)}
+                      title="Click to edit"
+                    >
+                      {project.contractor?.name ?? "contractor"}
+                    </span>
+                  )}
+                  <span className="opacity-40">·</span>
+                  {editingAwardedDate ? (
+                    <input
+                      autoFocus
+                      type="date"
+                      className="bg-transparent border-b border-blue-500 focus:outline-none text-sm"
+                      value={awardedDateValue}
+                      onChange={(e) => setAwardedDateValue(e.target.value)}
+                      onBlur={saveAwardedDate}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveAwardedDate(); if (e.key === "Escape") setEditingAwardedDate(false); }}
+                    />
+                  ) : (
+                    <span
+                      className={`cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors ${!project.awarded_date ? "opacity-40 italic" : ""}`}
+                      onClick={() => { setAwardedDateValue(project.awarded_date ?? ""); setEditingAwardedDate(true); }}
+                      title="Click to edit"
+                    >
+                      {project.awarded_date ? `Awarded ${fmtDate(project.awarded_date)}` : "awarded date"}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  {project.contractor && ` · ${project.contractor.name}`}
+                  {project.awarded_date && ` · Awarded ${fmtDate(project.awarded_date)}`}
+                </>
+              )}
             </p>
             <div className="flex items-center gap-2 mt-3">
               {isReadOnly ? (
@@ -1168,6 +1257,36 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
           </section>
+        )}
+
+        {userRole === "admin" && (
+          <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800 flex justify-end">
+            {confirmDeleteProject ? (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Delete this project and all its data?</span>
+                <button
+                  onClick={deleteProject}
+                  disabled={deletingProject}
+                  className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50 transition-colors"
+                >
+                  {deletingProject ? "Deleting…" : "Yes, Delete"}
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteProject(false)}
+                  className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDeleteProject(true)}
+                className="px-4 py-2 text-sm rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                Delete Project
+              </button>
+            )}
+          </div>
         )}
       </div>
 

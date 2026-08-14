@@ -19,14 +19,17 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { name, client_name, contractor_id, awarded_date, template_id, priority } = await req.json();
-  if (!name || !client_name || !template_id) {
-    return NextResponse.json({ error: "name, client_name, template_id required" }, { status: 400 });
+  const { name, client_id, contractor_id, awarded_date, template_id, priority } = await req.json();
+  if (!name || !client_id || !template_id) {
+    return NextResponse.json({ error: "name, client_id, template_id required" }, { status: 400 });
   }
+
+  const { data: client } = await supabaseAdmin.from("clients").select("name").eq("id", client_id).single();
+  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
   const { data: project, error: projError } = await supabaseAdmin
     .from("projects")
-    .insert({ name, client_name, contractor_id: contractor_id || null, awarded_date: awarded_date || null, status: "upcoming", priority: priority || "medium" })
+    .insert({ name, client_name: client.name, client_id, contractor_id: contractor_id || null, awarded_date: awarded_date || null, status: "upcoming", priority: priority || "medium" })
     .select()
     .single();
 

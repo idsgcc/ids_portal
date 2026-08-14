@@ -26,6 +26,12 @@ const LOOKUP_SECTIONS = [
     description: "Shown in the Category dropdown when adding/editing a supplier.",
     placeholder: "e.g. Splicing Equipment",
   },
+  {
+    type: "billing_country",
+    label: "Billing Countries",
+    description: "Countries available in the Billing Country dropdown when adding/editing a company.",
+    placeholder: "e.g. Oman",
+  },
 ];
 
 function LookupSection({ type, label, description, placeholder }: { type: string; label: string; description: string; placeholder: string }) {
@@ -299,7 +305,7 @@ function UsersSection() {
 
 type Permission = { id: string; role: string; module: string; can_access: boolean };
 
-const MODULES = ["projects", "tenders", "employees", "contractors", "suppliers", "admin"];
+const MODULES = ["projects", "tenders", "employees", "contacts", "companies", "contractors", "suppliers", "admin"];
 const ROLES = ["admin", "engineer"];
 
 function ModulePermissionsSection() {

@@ -53,10 +53,34 @@ function IconAddressBook() {
   );
 }
 
+function IconOfficeBuilding() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/><path d="M7 6h.01M12 6h.01M17 6h.01M7 12h.01M12 12h.01M17 12h.01M7 16h.01M12 16h.01M17 16h.01"/>
+    </svg>
+  );
+}
+
+function IconUserCheck() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/>
+    </svg>
+  );
+}
+
 function IconChart() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+    </svg>
+  );
+}
+
+function IconTarget() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
     </svg>
   );
 }
@@ -72,6 +96,7 @@ const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; des
     heading: "Projects",
     cards: [
       { href: "/projects", title: "Project Tracking", description: "Track post-award project stages, tasks, and progress.", icon: <IconFolders />, module: "projects" },
+      { href: "/opportunities", title: "Opportunities", description: "Track bids and incoming work before award.", icon: <IconTarget />, module: "opportunities" },
       { href: "/tenders", title: "Tender Monitoring", description: "Track live tenders from the Nama and OETC iSupplier portals.", icon: <IconClipboard />, module: "tenders" },
     ],
   },
@@ -84,9 +109,11 @@ const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; des
   {
     heading: "Contacts",
     cards: [
-      { href: "/contacts", title: "Contacts", description: "Search and browse all contacts.", icon: <IconAddressBook />, module: "contacts" },
+      { href: "/companies", title: "Companies", description: "Search and manage company records.", icon: <IconOfficeBuilding />, module: "companies" },
+      { href: "/clients", title: "Clients", description: "Companies we deliver projects for.", icon: <IconUserCheck />, module: "clients" },
       { href: "/contractors", title: "Contractors", description: "View and manage contractor company details.", icon: <IconBuilding />, module: "contractors" },
       { href: "/suppliers", title: "Suppliers", description: "View and manage supplier company details.", icon: <IconTruck />, module: "suppliers" },
+      { href: "/contacts", title: "Contacts", description: "Search and browse all contacts.", icon: <IconAddressBook />, module: "contacts" },
     ],
   },
 ];

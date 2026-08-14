@@ -6,23 +6,19 @@ import Link from "next/link";
 
 type Contact = { id: string; name: string | null; title: string | null; email: string | null; phone: string | null; sort_order: number };
 
-type Contractor = {
+type Client = {
   id: string;
   company_id: string | null;
   company_name: string;
   company_country: string | null;
-  principal: string[] | null;
-  specialization: string | null;
   status: string;
-  website: string | null;
-  trade_license: string | null;
   notes: string | null;
-  contractor_contacts: Contact[];
+  client_contacts: Contact[];
 };
 
 const LOGO_COLORS = [
-  "bg-blue-600", "bg-indigo-600", "bg-violet-600",
-  "bg-sky-600", "bg-teal-600", "bg-cyan-600",
+  "bg-violet-600", "bg-purple-600", "bg-fuchsia-600",
+  "bg-indigo-600", "bg-pink-600", "bg-rose-600",
 ];
 function logoColor(name: string) {
   let h = 0;
@@ -33,18 +29,14 @@ function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
-function matches(c: Contractor, q: string): boolean {
+function matches(c: Client, q: string): boolean {
   const s = q.toLowerCase();
   return (
     c.company_name.toLowerCase().includes(s) ||
     (c.company_country?.toLowerCase().includes(s) ?? false) ||
-    (c.specialization?.toLowerCase().includes(s) ?? false) ||
     (c.status.toLowerCase().includes(s)) ||
-    (c.website?.toLowerCase().includes(s) ?? false) ||
-    (c.trade_license?.toLowerCase().includes(s) ?? false) ||
     (c.notes?.toLowerCase().includes(s) ?? false) ||
-    (c.principal?.some((p) => p.toLowerCase().includes(s)) ?? false) ||
-    c.contractor_contacts.some(
+    c.client_contacts.some(
       (ct) =>
         ct.name?.toLowerCase().includes(s) ||
         ct.title?.toLowerCase().includes(s) ||
@@ -54,33 +46,33 @@ function matches(c: Contractor, q: string): boolean {
   );
 }
 
-export default function ContractorsPage() {
+export default function ClientsPage() {
   const router = useRouter();
-  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetch("/api/contractors")
+    fetch("/api/clients")
       .then((r) => r.json())
-      .then((d) => { setContractors(d); setLoading(false); });
+      .then((d) => { setClients(d); setLoading(false); });
   }, []);
 
-  async function deleteContractor(id: string) {
+  async function deleteClient(id: string) {
     setDeleting(true);
-    await fetch(`/api/contractors/${id}`, { method: "DELETE" });
-    setContractors((prev) => prev.filter((c) => c.id !== id));
+    await fetch(`/api/clients/${id}`, { method: "DELETE" });
+    setClients((prev) => prev.filter((c) => c.id !== id));
     setConfirmDelete(null);
     setDeleting(false);
   }
 
-  const filtered = query.trim() ? contractors.filter((c) => matches(c, query.trim())) : contractors;
+  const filtered = query.trim() ? clients.filter((c) => matches(c, query.trim())) : clients;
   const active = filtered.filter((c) => c.status === "active");
   const inactive = filtered.filter((c) => c.status === "inactive");
 
-  function Group({ label, items }: { label: string; items: Contractor[] }) {
+  function Group({ label, items }: { label: string; items: Client[] }) {
     if (!items.length) return null;
     return (
       <div className="mb-8">
@@ -91,17 +83,16 @@ export default function ContractorsPage() {
           <div className="flex items-center gap-4 px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
             <div className="w-9 shrink-0" />
             <div className="flex-1">Company Name</div>
-            <div className="w-28 text-right shrink-0 hidden sm:block">Principal</div>
             <div className="w-32 text-right shrink-0 hidden sm:block">Country</div>
             <div className="w-28 shrink-0" />
           </div>
           {items.map((c) => {
-            const primaryContact = c.contractor_contacts[0];
-            const extraContacts = c.contractor_contacts.length - 1;
+            const primaryContact = c.client_contacts[0];
+            const extraContacts = c.client_contacts.length - 1;
             return (
               <div
                 key={c.id}
-                onClick={() => router.push(`/contractors/${c.id}`)}
+                onClick={() => router.push(`/clients/${c.id}`)}
                 className="group flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors cursor-pointer"
               >
                 <div className={`w-9 h-9 rounded-lg ${logoColor(c.company_name)} flex items-center justify-center text-white font-bold text-xs shrink-0`}>
@@ -109,22 +100,12 @@ export default function ContractorsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="font-semibold text-sm">{c.company_name}</span>
-                  {c.specialization && (
-                    <span className="ml-2 text-[10px] text-blue-600 dark:text-blue-400">{c.specialization}</span>
-                  )}
                   {primaryContact?.name && (
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
                       {primaryContact.name}{extraContacts > 0 ? ` +${extraContacts}` : ""}
                       {primaryContact.email && <span className="ml-2">{primaryContact.email}</span>}
                     </p>
                   )}
-                </div>
-                <div className="w-28 text-right shrink-0 hidden sm:flex justify-end gap-1 flex-wrap">
-                  {c.principal?.map((p) => (
-                    <span key={p} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase tracking-wide">
-                      {p}
-                    </span>
-                  ))}
                 </div>
                 <div className="w-32 text-right shrink-0 hidden sm:block">
                   {c.company_country && <span className="text-xs text-gray-400 dark:text-gray-500">{c.company_country}</span>}
@@ -133,7 +114,7 @@ export default function ContractorsPage() {
                   {confirmDelete === c.id ? (
                     <>
                       <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Delete?</span>
-                      <button onClick={() => deleteContractor(c.id)} disabled={deleting} className="px-2 py-1 text-xs rounded-md bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50">
+                      <button onClick={() => deleteClient(c.id)} disabled={deleting} className="px-2 py-1 text-xs rounded-md bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50">
                         {deleting ? "…" : "Yes"}
                       </button>
                       <button onClick={() => setConfirmDelete(null)} className="px-2 py-1 text-xs rounded-md border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -142,7 +123,7 @@ export default function ContractorsPage() {
                     </>
                   ) : (
                     <>
-                      <button onClick={() => router.push(`/contractors/${c.id}/edit`)} className="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100">
+                      <button onClick={() => router.push(`/clients/${c.id}/edit`)} className="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100">
                         Edit
                       </button>
                       <button onClick={() => setConfirmDelete(c.id)} className="px-2.5 py-1 text-xs rounded-md border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100">
@@ -168,24 +149,24 @@ export default function ContractorsPage() {
 
         <div className="flex items-center justify-between mt-6 mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Contractors</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Telecom companies we subcontract for</p>
+            <h1 className="text-2xl font-bold">Clients</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Companies we deliver projects for</p>
           </div>
           <a
-            href="/contractors/new"
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+            href="/clients/new"
+            className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium transition-colors"
           >
-            Add Contractor
+            Add Client
           </a>
         </div>
 
         <div className="relative mb-8">
           <input
             type="search"
-            placeholder="Search by name, contact, email, phone, principal…"
+            placeholder="Search by name, contact, country…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:border-violet-500 dark:focus:border-violet-500"
           />
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -194,15 +175,15 @@ export default function ContractorsPage() {
 
         {loading ? (
           <p className="text-gray-400 text-sm">Loading…</p>
-        ) : contractors.length === 0 ? (
+        ) : clients.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
-            <p className="text-lg font-medium">No contractors yet</p>
-            <p className="text-sm mt-1">Click Add Contractor to get started</p>
+            <p className="text-lg font-medium">No clients yet</p>
+            <p className="text-sm mt-1">Click Add Client to get started</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <p className="text-lg font-medium">No results for &ldquo;{query}&rdquo;</p>
-            <p className="text-sm mt-1">Try a different name, contact, or field</p>
+            <p className="text-sm mt-1">Try a different name or contact</p>
           </div>
         ) : (
           <>

@@ -19,15 +19,16 @@ type Project = {
 };
 type Template = { id: string; name: string };
 type Contractor = { id: string; name: string };
+type Client = { id: string; name: string };
 type FormData = {
   name: string;
-  client_name: string;
+  client_id: string;
   contractor_id: string;
   awarded_date: string;
   template_id: string;
   priority: string;
 };
-const EMPTY: FormData = { name: "", client_name: "", contractor_id: "", awarded_date: "", template_id: "", priority: "medium" };
+const EMPTY: FormData = { name: "", client_id: "", contractor_id: "", awarded_date: "", template_id: "", priority: "medium" };
 
 const PROJECT_STATUSES = [
   { value: "upcoming",  label: "Upcoming",  color: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300" },
@@ -121,6 +122,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormData>(EMPTY);
@@ -129,15 +131,17 @@ export default function ProjectsPage() {
 
   async function load() {
     setLoading(true);
-    const [pRes, tRes, cRes, meRes] = await Promise.all([
+    const [pRes, tRes, cRes, clRes, meRes] = await Promise.all([
       fetch("/api/projects"),
       fetch("/api/templates"),
       fetch("/api/contractors"),
+      fetch("/api/clients"),
       fetch("/api/me"),
     ]);
     setProjects(await pRes.json());
     setTemplates(await tRes.json());
     setContractors(await cRes.json());
+    setClients(await clRes.json());
     const me = await meRes.json();
     setUserRole(me.role ?? null);
     setLoading(false);
@@ -164,7 +168,7 @@ export default function ProjectsPage() {
   }
 
   async function save() {
-    if (!form.name.trim() || !form.client_name.trim() || !form.template_id) return;
+    if (!form.name.trim() || !form.client_id || !form.template_id) return;
     setSaving(true);
     await fetch("/api/projects", {
       method: "POST",
@@ -211,21 +215,27 @@ export default function ProjectsPage() {
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-6 w-full max-w-md">
               <h2 className="text-lg font-semibold mb-5">New Project</h2>
               <div className="space-y-4">
-                {[
-                  { label: "Project Name *", key: "name", type: "text", placeholder: "Al Jazzier DWDM" },
-                  { label: "Client Name *", key: "client_name", type: "text", placeholder: "Nama" },
-                ].map(({ label, key, type, placeholder }) => (
-                  <div key={key}>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">{label}</label>
-                    <input
-                      type={type}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                      value={(form as Record<string, string>)[key]}
-                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      placeholder={placeholder}
-                    />
-                  </div>
-                ))}
+                <div>
+                  <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Project Name *</label>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Al Jazzier DWDM"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Client *</label>
+                  <select
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    value={form.client_id}
+                    onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+                  >
+                    <option value="">— Select client —</option>
+                    {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Contractor</label>
                   <select
@@ -275,7 +285,7 @@ export default function ProjectsPage() {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={save}
-                  disabled={saving || !form.name.trim() || !form.client_name.trim() || !form.template_id}
+                  disabled={saving || !form.name.trim() || !form.client_id || !form.template_id}
                   className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
                 >
                   {saving ? "Creating…" : "Create Project"}

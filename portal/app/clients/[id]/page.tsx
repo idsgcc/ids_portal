@@ -13,24 +13,20 @@ type Contact = {
   sort_order: number;
 };
 
-type Contractor = {
+type Client = {
   id: string;
   company_id: string | null;
   company_name: string;
   company_country: string | null;
-  principal: string[] | null;
-  specialization: string | null;
   status: string;
-  website: string | null;
-  trade_license: string | null;
   notes: string | null;
   created_at: string;
-  contractor_contacts: Contact[];
+  client_contacts: Contact[];
 };
 
 const LOGO_COLORS = [
-  "bg-blue-600", "bg-indigo-600", "bg-violet-600",
-  "bg-sky-600", "bg-teal-600", "bg-cyan-600",
+  "bg-violet-600", "bg-purple-600", "bg-fuchsia-600",
+  "bg-indigo-600", "bg-pink-600", "bg-rose-600",
 ];
 function logoColor(name: string) {
   let h = 0;
@@ -60,15 +56,15 @@ function Row({ label, value, href }: { label: string; value: string | null; href
   );
 }
 
-export default function ContractorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [c, setC] = useState<Contractor | null>(null);
+  const [c, setC] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/contractors/${id}`)
+    fetch(`/api/clients/${id}`)
       .then((r) => r.json())
       .then((d) => { setC(d?.error ? null : d); setLoading(false); });
   }, [id]);
@@ -76,27 +72,30 @@ export default function ContractorDetailPage({ params }: { params: Promise<{ id:
   async function toggleStatus() {
     if (!c) return;
     const next = c.status === "active" ? "inactive" : "active";
-    await fetch(`/api/contractors/${id}`, {
+    const res = await fetch(`/api/clients/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
     });
-    setC({ ...c, status: next });
+    if (res.ok) {
+      const updated = await res.json();
+      setC(updated);
+    }
   }
 
   async function del() {
-    await fetch(`/api/contractors/${id}`, { method: "DELETE" });
-    router.push("/contractors");
+    await fetch(`/api/clients/${id}`, { method: "DELETE" });
+    router.push("/clients");
   }
 
   if (loading) return <main className="min-h-screen p-8"><p className="text-gray-400 text-sm">Loading…</p></main>;
-  if (!c) return <main className="min-h-screen p-8"><p className="text-red-500 text-sm">Contractor not found.</p></main>;
+  if (!c) return <main className="min-h-screen p-8"><p className="text-red-500 text-sm">Client not found.</p></main>;
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-lg mx-auto">
-        <Link href="/contractors" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-          ← Back to contractors
+        <Link href="/clients" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+          ← Back to clients
         </Link>
 
         {/* Header */}
@@ -111,69 +110,55 @@ export default function ContractorDetailPage({ params }: { params: Promise<{ id:
                 {c.company_id && (
                   <Link
                     href={`/companies/${c.company_id}`}
-                    className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs text-violet-500 hover:text-violet-600 dark:text-violet-400 dark:hover:text-violet-300 transition-colors"
                   >
                     View company →
                   </Link>
                 )}
               </div>
-              {c.specialization && (
-                <p className="text-sm text-blue-600 dark:text-blue-400 mt-0.5">{c.specialization}</p>
-              )}
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide ${STATUS_STYLES[c.status] ?? STATUS_STYLES.inactive}`}>
                   {c.status}
                 </span>
-                {c.principal?.map((p) => (
-                  <span key={p} className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase tracking-wide">
-                    {p}
-                  </span>
-                ))}
                 {c.company_country && <span className="text-xs text-gray-400">{c.company_country}</span>}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Details */}
-        <div className="space-y-3 mb-6">
-          <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Company</p>
-            {c.principal?.length ? <Row label="Principal" value={c.principal.join(", ")} /> : null}
-            <Row label="Trade License" value={c.trade_license} />
-            <Row label="Website" value={c.website} href={c.website ?? undefined} />
+        {/* Contacts */}
+        {c.client_contacts.length > 0 && (
+          <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-4 mb-3">
+            {c.client_contacts.map((contact, i) => (
+              <div key={contact.id} className={i > 0 ? "pt-4 border-t border-gray-100 dark:border-gray-800" : ""}>
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+                  {i === 0 ? "Primary Contact" : contact.title || `Contact ${i + 1}`}
+                </p>
+                <Row label="Name" value={contact.name} />
+                {i === 0 && contact.title && <Row label="Title" value={contact.title} />}
+                {i > 0 && contact.title && <Row label="Title" value={contact.title} />}
+                <Row label="Email" value={contact.email} href={contact.email ? `mailto:${contact.email}` : undefined} />
+                <Row label="Phone" value={contact.phone} href={contact.phone ? `tel:${contact.phone}` : undefined} />
+              </div>
+            ))}
           </div>
+        )}
 
-          {c.contractor_contacts.length > 0 && (
-            <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-4">
-              {c.contractor_contacts.map((contact, i) => (
-                <div key={contact.id} className={i > 0 ? "pt-4 border-t border-gray-100 dark:border-gray-800" : ""}>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
-                    {i === 0 ? "Primary Contact" : contact.title || `Contact ${i + 1}`}
-                  </p>
-                  <Row label="Name" value={contact.name} />
-                  {contact.title && i > 0 && <Row label="Title" value={contact.title} />}
-                  {i === 0 && contact.title && <Row label="Title" value={contact.title} />}
-                  <Row label="Email" value={contact.email} href={contact.email ? `mailto:${contact.email}` : undefined} />
-                  <Row label="Phone" value={contact.phone} href={contact.phone ? `tel:${contact.phone}` : undefined} />
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Notes */}
+        {c.notes && (
+          <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 mb-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Notes</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{c.notes}</p>
+          </div>
+        )}
 
-          {c.notes && (
-            <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Notes</p>
-              <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{c.notes}</p>
-            </div>
-          )}
-        </div>
+        {/* Spacer if no notes */}
+        {!c.notes && <div className="mb-6" />}
 
         {/* Actions */}
         <div className="flex gap-3">
           <Link
-            href={`/contractors/${id}/edit`}
+            href={`/clients/${id}/edit`}
             className="flex-1 py-2 text-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
           >
             Edit

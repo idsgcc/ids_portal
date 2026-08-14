@@ -6,8 +6,9 @@ import Link from "next/link";
 
 type Supplier = {
   id: string;
-  name: string;
-  country: string | null;
+  company_id: string | null;
+  company_name: string;
+  company_country: string | null;
   contact_name: string | null;
   email: string | null;
   phone: string | null;
@@ -99,11 +100,21 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
         {/* Header */}
         <div className="mt-6 mb-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
           <div className="flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-xl ${logoColor(s.name)} flex items-center justify-center text-white font-bold text-lg shrink-0`}>
-              {initials(s.name)}
+            <div className={`w-16 h-16 rounded-xl ${logoColor(s.company_name)} flex items-center justify-center text-white font-bold text-lg shrink-0`}>
+              {initials(s.company_name)}
             </div>
-            <div>
-              <h1 className="text-xl font-bold">{s.name}</h1>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-bold">{s.company_name}</h1>
+                {s.company_id && (
+                  <Link
+                    href={`/companies/${s.company_id}`}
+                    className="text-xs text-emerald-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                  >
+                    View company →
+                  </Link>
+                )}
+              </div>
               {s.category && (
                 <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">{s.category}</p>
               )}
@@ -111,7 +122,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide ${STATUS_STYLES[s.status] ?? STATUS_STYLES.inactive}`}>
                   {s.status}
                 </span>
-                {s.country && <span className="text-xs text-gray-400">{s.country}</span>}
+                {s.company_country && <span className="text-xs text-gray-400">{s.company_country}</span>}
               </div>
             </div>
           </div>

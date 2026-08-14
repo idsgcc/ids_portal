@@ -4,23 +4,27 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export type CompanyType = "contractor" | "supplier";
+export type CompanyType = "contractor" | "supplier" | "client";
 
+type CompanyOption = { id: string; name: string; is_contractor: boolean; is_supplier: boolean; is_client: boolean };
 type ContactRow = { name: string; title: string; email: string; phone: string };
 
-type ContractorFields = {
-  name: string; country: string;
+type FormData = {
+  company_id: string;
+  contact_name: string; email: string; phone: string;
   specialization: string; status: string; website: string; trade_license: string; notes: string;
+  category: string; lead_time_days: string; payment_terms: string;
 };
-type SupplierFields = {
-  name: string; country: string; contact_name: string; email: string; phone: string;
-  category: string; status: string; lead_time_days: string; payment_terms: string;
-  website: string; notes: string;
+
+type InitialData = Partial<FormData> & {
+  contractor_contacts?: ContactRow[];
+  client_contacts?: ContactRow[];
+  principal?: string[];
+  company_name?: string;
 };
-type FormData = ContractorFields & SupplierFields;
 
 const EMPTY: FormData = {
-  name: "", country: "", contact_name: "", email: "", phone: "",
+  company_id: "", contact_name: "", email: "", phone: "",
   specialization: "", status: "", website: "", trade_license: "", notes: "",
   category: "", lead_time_days: "", payment_terms: "",
 };
@@ -48,50 +52,150 @@ function Section({ title }: { title: string }) {
   );
 }
 
+function CompanyPicker({
+  selectedId,
+  selectedName,
+  options,
+  onSelect,
+}: {
+  selectedId: string;
+  selectedName: string;
+  options: CompanyOption[];
+  onSelect: (id: string, name: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  if (selectedId) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-gray-200">
+          {selectedName}
+        </div>
+        <button
+          type="button"
+          onClick={() => { onSelect("", ""); setSearch(""); }}
+          className="px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap"
+        >
+          Change
+        </button>
+      </div>
+    );
+  }
+
+  const filtered = search.trim()
+    ? options.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 10)
+    : options.slice(0, 10);
+  const totalMatches = options.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())).length;
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        className={inputCls}
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        placeholder="Search existing companies…"
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-20 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg mt-1 shadow-lg max-h-52 overflow-y-auto">
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onMouseDown={() => { onSelect(c.id, c.name); setSearch(""); setOpen(false); }}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              {c.name}
+            </button>
+          ))}
+          {totalMatches > 10 && (
+            <p className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 dark:border-gray-800">
+              Type to narrow results…
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CompanyForm({
   type,
   initial,
   companyId,
 }: {
   type: CompanyType;
-  initial?: Partial<FormData> & { contractor_contacts?: ContactRow[]; principal?: string[] };
+  initial?: InitialData;
   companyId?: string;
 }) {
   const router = useRouter();
-  const defaultStatus = type === "contractor" ? "active" : "approved";
-  const [form, setForm] = useState<FormData>({ ...EMPTY, status: defaultStatus, ...initial });
-  const [contacts, setContacts] = useState<ContactRow[]>(
-    type === "contractor"
-      ? (initial?.contractor_contacts?.length ? initial.contractor_contacts : [{ ...EMPTY_CONTACT }])
-      : []
-  );
-  const [principals, setPrincipals] = useState<string[]>(
-    type === "contractor" ? (initial?.principal ?? []) : []
-  );
+  const isContractor = type === "contractor";
+  const isSupplier = type === "supplier";
+  const isClient = type === "client";
+
+  const defaultStatus = isSupplier ? "approved" : "active";
+
+  const [form, setForm] = useState<FormData>(() => {
+    const base: FormData = { ...EMPTY, status: defaultStatus };
+    if (!initial) return base;
+    const keys = Object.keys(EMPTY) as (keyof FormData)[];
+    for (const k of keys) {
+      const v = initial[k];
+      if (v !== undefined && typeof v === "string") (base as Record<string, string>)[k] = v;
+    }
+    return base;
+  });
+
+  const [companyPickerName, setCompanyPickerName] = useState(initial?.company_name ?? "");
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
+  const [contacts, setContacts] = useState<ContactRow[]>(() => {
+    if (isContractor) return initial?.contractor_contacts?.length ? initial.contractor_contacts : [{ ...EMPTY_CONTACT }];
+    if (isClient) return initial?.client_contacts?.length ? initial.client_contacts : [{ ...EMPTY_CONTACT }];
+    return [];
+  });
+  const [principals, setPrincipals] = useState<string[]>(isContractor ? (initial?.principal ?? []) : []);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [lookupOptions, setLookupOptions] = useState<string[]>([]);
   const [principalOptions, setPrincipalOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    const lookupType = type === "contractor" ? "contractor_specialization" : "supplier_category";
-    fetch(`/api/admin/lookups?type=${lookupType}`)
-      .then((r) => r.json())
-      .then((items: { value: string }[]) => setLookupOptions(items.map((i) => i.value)));
-    if (type === "contractor") {
+    if (isContractor) {
+      fetch("/api/admin/lookups?type=contractor_specialization")
+        .then((r) => r.json())
+        .then((items: { value: string }[]) => setLookupOptions(items.map((i) => i.value)));
       fetch("/api/admin/lookups?type=contractor_principal")
         .then((r) => r.json())
         .then((items: { value: string }[]) => setPrincipalOptions(items.map((i) => i.value)));
+    } else if (isSupplier) {
+      fetch("/api/admin/lookups?type=supplier_category")
+        .then((r) => r.json())
+        .then((items: { value: string }[]) => setLookupOptions(items.map((i) => i.value)));
     }
+    fetch("/api/companies")
+      .then((r) => r.json())
+      .then((items: CompanyOption[]) => {
+        const available = items.filter((c) =>
+          isContractor ? !c.is_contractor :
+          isSupplier ? !c.is_supplier :
+          !c.is_client
+        );
+        setCompanyOptions(available);
+      });
   }, [type]);
 
   function set(key: keyof FormData, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function inp(key: keyof FormData, type = "text", placeholder = "") {
+  function inp(key: keyof FormData, inputType = "text", placeholder = "") {
     return (
       <input
-        type={type}
+        type={inputType}
         className={inputCls}
         value={form[key]}
         onChange={(e) => set(key, e.target.value)}
@@ -113,46 +217,37 @@ export default function CompanyForm({
     setContacts((cs) => cs.map((c, idx) => idx === i ? { ...c, [key]: value } : c));
   }
 
-  function addContact() {
-    setContacts((cs) => [...cs, { ...EMPTY_CONTACT }]);
-  }
-
-  function removeContact(i: number) {
-    setContacts((cs) => cs.filter((_, idx) => idx !== i));
-  }
-
   async function save() {
-    if (!form.name.trim()) return;
+    if (!form.company_id) { setError("Please select a company"); return; }
+    setError("");
     setSaving(true);
 
-    const raw: Record<string, string | number | null | ContactRow[]> = Object.fromEntries(
+    const raw: Record<string, unknown> = Object.fromEntries(
       Object.entries(form).map(([k, v]) => [k, typeof v === "string" ? (v.trim() || null) : v])
     );
-    if (type === "supplier" && raw.lead_time_days) {
-      raw.lead_time_days = parseInt(raw.lead_time_days as string) || null;
-    }
-    if (type === "contractor") {
-      delete raw.contact_name;
-      delete raw.email;
-      delete raw.phone;
-      delete raw.category;
-      delete raw.lead_time_days;
-      delete raw.payment_terms;
-      raw.principal = (principals.length ? principals : null) as unknown as string;
+
+    if (isContractor) {
+      delete raw.contact_name; delete raw.email; delete raw.phone;
+      delete raw.category; delete raw.lead_time_days; delete raw.payment_terms;
+      raw.principal = principals.length ? principals : null;
       raw.contacts = contacts.map((c) => ({
-        name: c.name.trim() || null,
-        title: c.title.trim() || null,
-        email: c.email.trim() || null,
-        phone: c.phone.trim() || null,
-      })) as unknown as ContactRow[];
+        name: c.name.trim() || null, title: c.title.trim() || null,
+        email: c.email.trim() || null, phone: c.phone.trim() || null,
+      }));
+    } else if (isClient) {
+      delete raw.contact_name; delete raw.email; delete raw.phone;
+      delete raw.category; delete raw.lead_time_days; delete raw.payment_terms;
+      delete raw.specialization; delete raw.trade_license; delete raw.website;
+      raw.contacts = contacts.map((c) => ({
+        name: c.name.trim() || null, title: c.title.trim() || null,
+        email: c.email.trim() || null, phone: c.phone.trim() || null,
+      }));
     } else {
-      delete raw.specialization;
-      delete raw.trade_license;
+      delete raw.specialization; delete raw.trade_license;
+      if (raw.lead_time_days) raw.lead_time_days = parseInt(raw.lead_time_days as string) || null;
     }
 
-    const url = companyId
-      ? `/api/${type}s/${companyId}`
-      : `/api/${type}s`;
+    const url = companyId ? `/api/${type}s/${companyId}` : `/api/${type}s`;
     const method = companyId ? "PATCH" : "POST";
 
     const res = await fetch(url, {
@@ -160,6 +255,13 @@ export default function CompanyForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(raw),
     });
+
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError(d.error ?? "Something went wrong");
+      setSaving(false);
+      return;
+    }
 
     if (companyId) {
       router.refresh();
@@ -172,27 +274,43 @@ export default function CompanyForm({
   }
 
   const backHref = companyId ? `/${type}s/${companyId}` : `/${type}s`;
-  const isContractor = type === "contractor";
+  const typeLabel = isContractor ? "Contractor" : isClient ? "Client" : "Supplier";
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-lg mx-auto">
         <Link href={backHref} className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-          ← {companyId ? `Back to ${isContractor ? "contractor" : "supplier"}` : `Back to ${isContractor ? "contractors" : "suppliers"}`}
+          ← {companyId ? `Back to ${type}` : `Back to ${type}s`}
         </Link>
 
         <h1 className="text-2xl font-bold mt-6 mb-8">
-          {companyId ? "Edit" : "Add"} {isContractor ? "Contractor" : "Supplier"}
+          {companyId ? "Edit" : "Add"} {typeLabel}
         </h1>
 
         <div className="space-y-4">
           <Section title="Company" />
-          <Field label="Company Name *">{inp("name", "text", isContractor ? "Acme Telecom LLC" : "TechSupply Co.")}</Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Country">{inp("country", "text", "UAE")}</Field>
-            <Field label="Status">{sel("status", isContractor ? CONTRACTOR_STATUSES : SUPPLIER_STATUSES)}</Field>
-          </div>
-          {isContractor ? (
+          <Field label="Company">
+            {companyId ? (
+              <div className="w-full bg-gray-100 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 cursor-not-allowed">
+                {companyPickerName || "—"}
+              </div>
+            ) : (
+              <CompanyPicker
+                selectedId={form.company_id}
+                selectedName={companyPickerName}
+                options={companyOptions}
+                onSelect={(id, name) => {
+                  setForm((f) => ({ ...f, company_id: id }));
+                  setCompanyPickerName(name);
+                }}
+              />
+            )}
+          </Field>
+          <Field label="Status">
+            {sel("status", isSupplier ? SUPPLIER_STATUSES : CONTRACTOR_STATUSES)}
+          </Field>
+
+          {isContractor && (
             <>
               {principalOptions.length > 0 && (
                 <div>
@@ -217,16 +335,19 @@ export default function CompanyForm({
                 </div>
               )}
               <Field label="Specialization">{sel("specialization", lookupOptions)}</Field>
+              <Field label="Website">{inp("website", "url", "https://")}</Field>
+              <Field label="Trade License No.">{inp("trade_license", "text", "CN-123456")}</Field>
             </>
-          ) : (
-            <Field label="Category">{sel("category", lookupOptions)}</Field>
-          )}
-          <Field label="Website">{inp("website", "url", "https://")}</Field>
-          {isContractor && (
-            <Field label="Trade License No.">{inp("trade_license", "text", "CN-123456")}</Field>
           )}
 
-          {isContractor ? (
+          {isSupplier && (
+            <>
+              <Field label="Category">{sel("category", lookupOptions)}</Field>
+              <Field label="Website">{inp("website", "url", "https://")}</Field>
+            </>
+          )}
+
+          {(isContractor || isClient) && (
             <>
               <Section title="Contacts" />
               {contacts.map((contact, i) => (
@@ -236,11 +357,7 @@ export default function CompanyForm({
                       {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
                     </span>
                     {i > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => removeContact(i)}
-                        className="text-xs text-red-400 hover:text-red-500 transition-colors"
-                      >
+                      <button type="button" onClick={() => setContacts((cs) => cs.filter((_, idx) => idx !== i))} className="text-xs text-red-400 hover:text-red-500 transition-colors">
                         Remove
                       </button>
                     )}
@@ -265,13 +382,15 @@ export default function CompanyForm({
               ))}
               <button
                 type="button"
-                onClick={addContact}
+                onClick={() => setContacts((cs) => [...cs, { ...EMPTY_CONTACT }])}
                 className="w-full py-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
               >
                 + Add Contact
               </button>
             </>
-          ) : (
+          )}
+
+          {isSupplier && (
             <>
               <Section title="Primary Contact" />
               <Field label="Contact Name">{inp("contact_name", "text", "John Smith")}</Field>
@@ -279,11 +398,6 @@ export default function CompanyForm({
                 <Field label="Email">{inp("email", "email", "john@company.com")}</Field>
                 <Field label="Phone">{inp("phone", "tel", "+971 50 000 0000")}</Field>
               </div>
-            </>
-          )}
-
-          {!isContractor && (
-            <>
               <Section title="Commercial" />
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Lead Time (days)">{inp("lead_time_days", "number", "30")}</Field>
@@ -303,13 +417,15 @@ export default function CompanyForm({
           </Field>
         </div>
 
+        {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
+
         <div className="flex gap-3 mt-8">
           <button
             onClick={save}
-            disabled={saving || !form.name.trim()}
+            disabled={saving || !form.company_id}
             className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
           >
-            {saving ? "Saving…" : companyId ? "Save Changes" : `Add ${isContractor ? "Contractor" : "Supplier"}`}
+            {saving ? "Saving…" : companyId ? "Save Changes" : `Add ${typeLabel}`}
           </button>
           <a
             href={backHref}

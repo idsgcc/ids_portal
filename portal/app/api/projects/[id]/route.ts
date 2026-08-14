@@ -29,8 +29,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const allowed = ["name", "client_name", "contractor_id", "awarded_date", "status", "priority"];
-  const update = Object.fromEntries(Object.entries(body).filter(([k]) => allowed.includes(k)));
+  const allowed = ["name", "client_name", "client_id", "contractor_id", "awarded_date", "status", "priority"];
+  const update: Record<string, unknown> = Object.fromEntries(Object.entries(body).filter(([k]) => allowed.includes(k)));
+
+  if (update.client_id) {
+    const { data: client } = await supabaseAdmin.from("clients").select("name").eq("id", update.client_id as string).single();
+    if (client) update.client_name = client.name;
+  }
 
   const { data, error } = await supabaseAdmin
     .from("projects")
@@ -41,4 +46,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
   return NextResponse.json(data);
+}
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { error } = await supabaseAdmin.from("projects").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+  return NextResponse.json({ ok: true });
 }
