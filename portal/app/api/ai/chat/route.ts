@@ -81,7 +81,7 @@ Answer only from the data above. If something isn't in the data, say so clearly.
 
   try {
     const chat = genAI.chats.create({
-      model: "gemini-flash-latest",
+      model: "gemini-3.5-flash",
       config: { systemInstruction: systemPrompt },
       history: (history ?? []).map((m: { role: string; text: string }) => ({
         role: m.role === "user" ? "user" : "model",
