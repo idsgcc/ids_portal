@@ -277,7 +277,7 @@ function UsersSection() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {confirmDelete === u.id ? (
+                    {u.role === "superuser" && myRole !== "superuser" ? null : confirmDelete === u.id ? (
                       <span className="flex items-center justify-end gap-2">
                         <span className="text-xs text-gray-500">Remove user?</span>
                         <button
