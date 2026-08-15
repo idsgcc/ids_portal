@@ -23,6 +23,9 @@ const NAV_ITEMS = [
     { label: "Suppliers", href: "/suppliers", module: "suppliers" },
     { label: "Contacts", href: "/contacts", module: "contacts" },
   ]},
+  { group: "AI", items: [
+    { label: "AI Assistant", href: "/ai", module: "ai" },
+  ]},
   { group: "Settings", items: [
     { label: "Admin", href: "/admin", module: "admin" },
   ]},

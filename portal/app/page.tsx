@@ -94,6 +94,14 @@ function IconTarget() {
   );
 }
 
+function IconSparkles() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>
+    </svg>
+  );
+}
+
 const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; description: string; icon: ReactNode; module: string }[] }[] = [
   {
     heading: "Finance",
@@ -124,6 +132,12 @@ const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; des
       { href: "/contractors", title: "Contractors", description: "View and manage contractor company details.", icon: <IconBuilding />, module: "contractors" },
       { href: "/suppliers", title: "Suppliers", description: "View and manage supplier company details.", icon: <IconTruck />, module: "suppliers" },
       { href: "/contacts", title: "Contacts", description: "Search and browse all contacts.", icon: <IconAddressBook />, module: "contacts" },
+    ],
+  },
+  {
+    heading: "AI",
+    cards: [
+      { href: "/ai", title: "AI Assistant", description: "Ask questions about projects, opportunities, and invoices.", icon: <IconSparkles />, module: "ai" },
     ],
   },
 ];
