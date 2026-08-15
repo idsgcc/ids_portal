@@ -228,16 +228,22 @@ function UsersSection() {
                   <td className="px-4 py-3 font-medium">{u.full_name}</td>
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{u.email}</td>
                   <td className="px-4 py-3">
-                    <select
-                      value={u.role}
-                      disabled={changingRole === u.id}
-                      onChange={(e) => changeRole(u.id, e.target.value)}
-                      className="bg-transparent border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                    >
-                      <option value="engineer">Engineer</option>
-                      <option value="admin">Admin</option>
-                      {myRole === "superuser" && <option value="superuser">Super User</option>}
-                    </select>
+                    {u.role === "superuser" && myRole !== "superuser" ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
+                        Super User
+                      </span>
+                    ) : (
+                      <select
+                        value={u.role}
+                        disabled={changingRole === u.id}
+                        onChange={(e) => changeRole(u.id, e.target.value)}
+                        className="bg-transparent border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                      >
+                        <option value="engineer">Engineer</option>
+                        <option value="admin">Admin</option>
+                        {myRole === "superuser" && <option value="superuser">Super User</option>}
+                      </select>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {settingPassword === u.id ? (
