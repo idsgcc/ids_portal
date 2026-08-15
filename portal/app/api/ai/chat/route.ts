@@ -5,6 +5,21 @@ import { GoogleGenAI } from "@google/genai";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
+export async function GET() {
+  try {
+    const models = genAI.models.list();
+    const names: string[] = [];
+    for await (const m of await models) {
+      if ((m as { supportedActions?: string[] }).supportedActions?.includes("generateContent")) {
+        names.push((m as { name?: string }).name ?? "");
+      }
+    }
+    return NextResponse.json({ models: names });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) });
+  }
+}
+
 export async function POST(req: Request) {
   // Auth — superuser only
   const supabase = await createClient();
