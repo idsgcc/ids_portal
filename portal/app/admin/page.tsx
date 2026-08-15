@@ -246,7 +246,7 @@ function UsersSection() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {settingPassword === u.id ? (
+                    {u.role === "superuser" && myRole !== "superuser" ? null : settingPassword === u.id ? (
                       <span className="flex items-center gap-2">
                         <input
                           autoFocus
