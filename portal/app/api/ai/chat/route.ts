@@ -92,7 +92,8 @@ Answer only from the data above. If something isn't in the data, say so clearly.
     const result = await chat.sendMessage({ message });
     return NextResponse.json({ reply: result.text });
   } catch (err) {
-    console.error("Gemini error:", err);
-    return NextResponse.json({ error: "AI request failed" }, { status: 502 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Gemini error:", msg);
+    return NextResponse.json({ error: msg }, { status: 502 });
   }
 }
