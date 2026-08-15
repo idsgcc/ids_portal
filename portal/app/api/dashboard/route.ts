@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!["admin","superuser"].includes(profile?.role ?? "")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { data, error } = await supabaseAdmin
     .from("invoices")

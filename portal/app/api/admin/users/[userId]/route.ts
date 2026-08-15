@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export async function PATCH(
@@ -16,6 +17,18 @@ export async function PATCH(
   }
 
   if (!body.role) return NextResponse.json({ error: "role or password required" }, { status: 400 });
+
+  if (body.role === "superuser") {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: callerProfile } = user
+      ? await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single()
+      : { data: null };
+    if (callerProfile?.role !== "superuser") {
+      return NextResponse.json({ error: "Only a Super User can assign the Super User role" }, { status: 403 });
+    }
+  }
+
   const { error } = await supabaseAdmin.from("profiles").update({ role: body.role }).eq("id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
   return NextResponse.json({ ok: true });

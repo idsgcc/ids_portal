@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!["admin","superuser"].includes(profile?.role ?? "")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = today.slice(0, 7) + "-01";

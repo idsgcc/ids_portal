@@ -9,7 +9,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!["admin","superuser"].includes(profile?.role ?? "")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   const { data, error } = await supabaseAdmin
@@ -38,7 +38,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!["admin","superuser"].includes(profile?.role ?? "")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();
@@ -62,7 +62,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!["admin","superuser"].includes(profile?.role ?? "")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   const { error } = await supabaseAdmin.from("invoices").delete().eq("id", id);

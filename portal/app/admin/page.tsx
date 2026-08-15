@@ -104,8 +104,12 @@ function UsersSection() {
   const [newPassword, setNewPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [myRole, setMyRole] = useState<string>("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    fetch("/api/me").then(r => r.json()).then(d => setMyRole(d.role ?? ""));
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -193,6 +197,7 @@ function UsersSection() {
               <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
                 <option value="engineer">Engineer</option>
                 <option value="admin">Admin</option>
+                {myRole === "superuser" && <option value="superuser">Super User</option>}
               </select>
             </div>
           </div>
@@ -231,6 +236,7 @@ function UsersSection() {
                     >
                       <option value="engineer">Engineer</option>
                       <option value="admin">Admin</option>
+                      {myRole === "superuser" && <option value="superuser">Super User</option>}
                     </select>
                   </td>
                   <td className="px-4 py-3">
@@ -305,8 +311,8 @@ function UsersSection() {
 
 type Permission = { id: string; role: string; module: string; can_access: boolean };
 
-const MODULES = ["projects", "tenders", "employees", "contacts", "companies", "contractors", "suppliers", "admin"];
-const ROLES = ["admin", "engineer"];
+const MODULES = ["dashboard", "invoices", "projects", "opportunities", "tenders", "employees", "contacts", "companies", "clients", "contractors", "suppliers", "admin", "ai"];
+const ROLES = ["superuser", "admin", "engineer"];
 
 function ModulePermissionsSection() {
   const [perms, setPerms] = useState<Permission[]>([]);

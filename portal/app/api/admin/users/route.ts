@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET() {
@@ -22,6 +23,17 @@ export async function POST(req: Request) {
   const { email, full_name, password, role } = await req.json();
   if (!email || !full_name || !password || !role) {
     return NextResponse.json({ error: "email, full_name, password, role required" }, { status: 400 });
+  }
+
+  if (role === "superuser") {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: callerProfile } = user
+      ? await supabaseAdmin.from("profiles").select("role").eq("id", user.id).single()
+      : { data: null };
+    if (callerProfile?.role !== "superuser") {
+      return NextResponse.json({ error: "Only a Super User can assign the Super User role" }, { status: 403 });
+    }
   }
 
   const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
