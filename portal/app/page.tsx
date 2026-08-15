@@ -77,6 +77,15 @@ function IconChart() {
   );
 }
 
+function IconReceipt() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+      <path d="M16 8H8"/><path d="M16 12H8"/><path d="M12 16H8"/>
+    </svg>
+  );
+}
+
 function IconTarget() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -89,7 +98,8 @@ const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; des
   {
     heading: "Finance",
     cards: [
-      { href: "/dashboard", title: "Dashboard", description: "Invoices paid and outstanding across all projects.", icon: <IconChart />, module: "dashboard" },
+      { href: "/dashboard", title: "Dashboard", description: "High-level overview of projects, opportunities, and finance.", icon: <IconChart />, module: "dashboard" },
+      { href: "/invoices", title: "Invoices", description: "Invoices paid and outstanding across all projects.", icon: <IconReceipt />, module: "invoices" },
     ],
   },
   {

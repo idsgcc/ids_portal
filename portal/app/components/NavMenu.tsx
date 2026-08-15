@@ -6,6 +6,7 @@ import Link from "next/link";
 const NAV_ITEMS = [
   { group: "Finance", items: [
     { label: "Dashboard", href: "/dashboard", module: "dashboard" },
+    { label: "Invoices", href: "/invoices", module: "invoices" },
   ]},
   { group: "Projects", items: [
     { label: "Project Tracking", href: "/projects", module: "projects" },
