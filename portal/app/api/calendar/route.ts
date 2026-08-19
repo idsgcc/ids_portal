@@ -24,6 +24,15 @@ export async function GET() {
   ]);
 
   type ProjectRef = { id: string; name: string } | null;
+  // Supabase returns nested joins as arrays regardless of cardinality
+  type RawPlan = { project: ProjectRef | ProjectRef[] } | { project: ProjectRef | ProjectRef[] }[] | null;
+
+  function extractProject(raw: unknown): ProjectRef {
+    const plan = Array.isArray(raw) ? (raw as RawPlan[])[0] : raw as RawPlan;
+    if (!plan) return null;
+    const proj = (plan as { project: ProjectRef | ProjectRef[] }).project;
+    return (Array.isArray(proj) ? proj[0] : proj) ?? null;
+  }
 
   const tasks = (tasksRes.data ?? []).map((t) => ({
     id: `task-${t.id}`,
@@ -31,7 +40,7 @@ export async function GET() {
     type: "task" as const,
     title: t.name,
     date: t.planned_finish as string,
-    project: (t.project_plan as { project: ProjectRef } | null)?.project ?? null,
+    project: extractProject(t.project_plan),
   }));
 
   const invoices = (invoicesRes.data ?? []).map((inv) => ({
@@ -40,7 +49,7 @@ export async function GET() {
     type: "invoice" as const,
     title: `${inv.invoice_number}${inv.amount != null ? ` · ${new Intl.NumberFormat("en-US", { style: "currency", currency: inv.currency, maximumFractionDigits: 0 }).format(inv.amount)}` : ""}`,
     date: inv.due_date as string,
-    project: (inv.project as ProjectRef) ?? null,
+    project: extractProject(inv.project),
     partyType: inv.party_type as string,
   }));
 
@@ -52,7 +61,7 @@ export async function GET() {
     date: ev.date as string,
     subType: ev.type as string,
     notes: ev.notes as string | null,
-    project: (ev.project as ProjectRef) ?? null,
+    project: extractProject(ev.project),
   }));
 
   const all = [...tasks, ...invoices, ...custom].sort(
