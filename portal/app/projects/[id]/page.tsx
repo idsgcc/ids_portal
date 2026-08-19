@@ -273,7 +273,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const role = me.role ?? null;
     setUserRole(role);
 
-    if (role === "admin") {
+    if (role === "admin" || role === "superuser") {
       setPos(pos);
       setInvoices(invoices);
       setContractorsList(allContractors.map((c: Contractor) => ({ id: c.id, name: c.name })));
@@ -1099,8 +1099,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           })}
         </div>
 
-        {/* Financials — admin only */}
-        {userRole === "admin" && (
+        {/* Financials — admin and superuser */}
+        {(userRole === "admin" || userRole === "superuser") && (
           <section className="mt-12">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-8">Financials</h2>
 
@@ -1250,7 +1250,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </section>
         )}
 
-        {userRole === "admin" && (
+        {(userRole === "admin" || userRole === "superuser") && (
           <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-800 flex justify-end">
             {confirmDeleteProject ? (
               <div className="flex items-center gap-3">
