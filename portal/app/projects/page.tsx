@@ -199,14 +199,22 @@ export default function ProjectsPage() {
             <h1 className="text-2xl font-bold">Projects</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Post-award project tracking</p>
           </div>
-          {!isReadOnly && (
-            <button
-              onClick={() => { setForm({ ...EMPTY, template_id: templates[0]?.id ?? "" }); setShowForm(true); }}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+          <div className="flex items-center gap-3">
+            <Link
+              href="/projects/calendar"
+              className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-medium text-gray-600 dark:text-gray-300 transition-colors"
             >
-              New Project
-            </button>
-          )}
+              Calendar
+            </Link>
+            {!isReadOnly && (
+              <button
+                onClick={() => { setForm({ ...EMPTY, template_id: templates[0]?.id ?? "" }); setShowForm(true); }}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+              >
+                New Project
+              </button>
+            )}
+          </div>
         </div>
 
         {/* New project modal */}

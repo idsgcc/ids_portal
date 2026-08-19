@@ -19,12 +19,14 @@ const LOOKUP_SECTIONS = [
     label: "Contractor Specializations",
     description: "Shown in the Specialization dropdown when adding/editing a contractor.",
     placeholder: "e.g. Underground Cabling",
+    sorted: true,
   },
   {
     type: "supplier_category",
     label: "Supplier Categories",
     description: "Shown in the Category dropdown when adding/editing a supplier.",
     placeholder: "e.g. Splicing Equipment",
+    sorted: true,
   },
   {
     type: "billing_country",
@@ -34,7 +36,7 @@ const LOOKUP_SECTIONS = [
   },
 ];
 
-function LookupSection({ type, label, description, placeholder }: { type: string; label: string; description: string; placeholder: string }) {
+function LookupSection({ type, label, description, placeholder, sorted }: { type: string; label: string; description: string; placeholder: string; sorted?: boolean }) {
   const [items, setItems] = useState<LookupValue[]>([]);
   const [newValue, setNewValue] = useState("");
   const [adding, setAdding] = useState(false);
@@ -67,7 +69,7 @@ function LookupSection({ type, label, description, placeholder }: { type: string
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">{description}</p>
       <div className="space-y-1.5 mb-4">
         {items.length === 0 && <p className="text-sm text-gray-400 py-2">No values yet.</p>}
-        {items.map((item) => (
+        {(sorted ? [...items].sort((a, b) => a.value.localeCompare(b.value)) : items).map((item) => (
           <div key={item.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg group">
             <span className="text-sm">{item.value}</span>
             <button onClick={() => remove(item.id)} disabled={removing === item.id} className="text-xs text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors opacity-0 group-hover:opacity-100">
@@ -425,7 +427,7 @@ export default function AdminPage() {
         </div>
 
         {tab === "Lookups" && (
-          <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-6">
             {LOOKUP_SECTIONS.map((s) => <LookupSection key={s.type} {...s} />)}
           </div>
         )}

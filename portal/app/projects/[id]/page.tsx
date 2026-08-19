@@ -846,7 +846,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   {/* Column headers */}
                   <div className={`grid ${COLS} bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 gap-2`}>
                     <div />
-                    {["Status", "Task", "Dur", "Planned", "Actual", "Assigned", ""].map((h) => (
+                    {["Status", "Task", "Dur", "Start", "Finish", "Assigned", ""].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
                   </div>
@@ -918,21 +918,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           {task.template_task?.duration_days != null ? `${task.template_task.duration_days}d` : "—"}
                         </span>
 
-                        {/* Planned dates */}
+                        {/* Start date */}
                         <span className="text-xs text-gray-500 min-w-0 truncate">
-                          {task.planned_start && task.planned_finish
-                            ? `${fmtDate(task.planned_start)} → ${fmtDate(task.planned_finish)}`
-                            : task.planned_finish ? `→ ${fmtDate(task.planned_finish)}`
-                            : task.planned_start ? fmtDate(task.planned_start)
-                            : <span className="text-gray-300 dark:text-gray-600">Not set</span>}
+                          {task.planned_start ? fmtDate(task.planned_start) : <span className="text-gray-300 dark:text-gray-600">—</span>}
                         </span>
 
-                        {/* Actual dates */}
+                        {/* Finish date */}
                         <span className="text-xs text-gray-500 min-w-0 truncate">
-                          {task.actual_start && task.actual_finish
-                            ? `${fmtDate(task.actual_start)} → ${fmtDate(task.actual_finish)}`
-                            : task.actual_start ? fmtDate(task.actual_start)
-                            : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                          {task.planned_finish ? fmtDate(task.planned_finish) : <span className="text-gray-300 dark:text-gray-600">—</span>}
                         </span>
 
                         {/* Assignee */}
@@ -979,12 +972,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       {/* Expanded panel */}
                       {editingTask === task.id && (
                         <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 px-4 py-4 space-y-4">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-2 gap-4">
                             {[
-                              { label: "Planned Start", key: "planned_start" },
-                              { label: "Planned Finish", key: "planned_finish" },
-                              { label: "Actual Start", key: "actual_start" },
-                              { label: "Actual Finish", key: "actual_finish" },
+                              { label: "Start", key: "planned_start" },
+                              { label: "Finish", key: "planned_finish" },
                             ].map(({ label, key }) => (
                               <div key={key}>
                                 <p className="text-xs text-gray-400 mb-1">{label}</p>
