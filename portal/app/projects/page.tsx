@@ -63,10 +63,10 @@ function fmtAmount(amount: number | null, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
 }
 
-function getOldestOverdueClientInvoice(invoices: Invoice[]): Invoice | null {
+function getOldestOverdueInvoice(invoices: Invoice[], partyType: string): Invoice | null {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   return (invoices ?? [])
-    .filter((inv) => inv.party_type === "client" && inv.status !== "paid" && inv.due_date && new Date(inv.due_date) < today)
+    .filter((inv) => inv.party_type === partyType && inv.status !== "paid" && inv.due_date && new Date(inv.due_date) < today)
     .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())[0] ?? null;
 }
 
@@ -325,7 +325,7 @@ export default function ProjectsPage() {
                 <div className="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
                   {/* Table header */}
                   <div className={`grid ${isReadOnly ? "grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr]" : "grid-cols-[2fr_1fr_1fr_1fr_1.8fr_1.8fr_1fr]"} bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2`}>
-                    {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", ...(!isReadOnly ? ["Overdue Invoice"] : [])].map((h) => (
+                    {["Project", "Client", "Status", "Priority", "Current Step", "Next Step", ...(!isReadOnly ? ["Overdue Invoices"] : [])].map((h) => (
                       <span key={h} className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</span>
                     ))}
                   </div>
@@ -334,7 +334,8 @@ export default function ProjectsPage() {
                   {items.map((p, i) => {
                     const { current, next } = getSteps(p.project_plans ?? []);
                     const dl = current?.status === "in_progress" ? deadlineStatus(current.planned_finish) : null;
-                    const overdueInv = getOldestOverdueClientInvoice(p.invoices ?? []);
+                    const overdueInv = getOldestOverdueInvoice(p.invoices ?? [], "client");
+                    const overdueSupInv = getOldestOverdueInvoice(p.invoices ?? [], "supplier");
                     const rowTint = dl === "overdue" ? "bg-red-50/60 dark:bg-red-900/10" : dl === "soon" ? "bg-amber-50/60 dark:bg-amber-900/10" : "";
                     return (
                       <div
@@ -415,19 +416,29 @@ export default function ProjectsPage() {
                           ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                         </div>
                         {!isReadOnly && (
-                          <div className="min-w-0">
-                            {overdueInv ? (() => {
-                              const daysOverdue = Math.floor((Date.now() - new Date(overdueInv.due_date!).getTime()) / 86400000);
-                              const amt = fmtAmount(overdueInv.amount, overdueInv.currency);
-                              return (
-                                <div>
-                                  <span className="text-xs font-medium text-red-600 dark:text-red-400 truncate block">{overdueInv.invoice_number}</span>
-                                  <span className="text-xs text-red-500 dark:text-red-400">
-                                    {amt ? `${amt} · ` : ""}{daysOverdue}d overdue
-                                  </span>
-                                </div>
-                              );
-                            })() : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                          <div className="min-w-0 space-y-0.5">
+                            {overdueInv || overdueSupInv ? (
+                              <>
+                                {overdueInv && (() => {
+                                  const daysOverdue = Math.floor((Date.now() - new Date(overdueInv.due_date!).getTime()) / 86400000);
+                                  const amt = fmtAmount(overdueInv.amount, overdueInv.currency);
+                                  return (
+                                    <span className="text-xs text-red-600 dark:text-red-400 truncate block">
+                                      {overdueSupInv ? <span className="font-medium">Client · </span> : null}{amt ? `${amt} · ` : ""}{daysOverdue}d overdue
+                                    </span>
+                                  );
+                                })()}
+                                {overdueSupInv && (() => {
+                                  const daysOverdue = Math.floor((Date.now() - new Date(overdueSupInv.due_date!).getTime()) / 86400000);
+                                  const amt = fmtAmount(overdueSupInv.amount, overdueSupInv.currency);
+                                  return (
+                                    <span className="text-xs text-red-600 dark:text-red-400 truncate block">
+                                      {overdueInv ? <span className="font-medium">Supplier · </span> : null}{amt ? `${amt} · ` : ""}{daysOverdue}d overdue
+                                    </span>
+                                  );
+                                })()}
+                              </>
+                            ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                           </div>
                         )}
                       </div>
