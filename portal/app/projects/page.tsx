@@ -128,6 +128,10 @@ export default function ProjectsPage() {
   const [form, setForm] = useState<FormData>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterOverdueTasks, setFilterOverdueTasks] = useState(false);
+  const [filterOverdueInvoices, setFilterOverdueInvoices] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -182,9 +186,28 @@ export default function ProjectsPage() {
 
   const isReadOnly = userRole === "engineer";
 
+  const displayed = projects.filter((p) => {
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      if (!p.name.toLowerCase().includes(q) && !p.client_name.toLowerCase().includes(q)) return false;
+    }
+    if (filterStatus && p.status !== filterStatus) return false;
+    if (filterOverdueTasks) {
+      const { current } = getSteps(p.project_plans ?? []);
+      const dl = current?.status === "in_progress" ? deadlineStatus(current.planned_finish) : null;
+      if (dl !== "overdue") return false;
+    }
+    if (filterOverdueInvoices) {
+      const overdueClient = getOldestOverdueInvoice(p.invoices ?? [], "client");
+      const overdueSupplier = getOldestOverdueInvoice(p.invoices ?? [], "supplier");
+      if (!overdueClient && !overdueSupplier) return false;
+    }
+    return true;
+  });
+
   const grouped = GROUP_ORDER.map((group) => ({
     group,
-    items: projects.filter((p) => lifecycleGroup(p.status) === group),
+    items: displayed.filter((p) => lifecycleGroup(p.status) === group),
   })).filter((g) => g.items.length > 0);
 
   return (
@@ -306,12 +329,54 @@ export default function ProjectsPage() {
           </div>
         )}
 
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1">
+            <input
+              type="search"
+              placeholder="Search projects…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+            />
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 text-gray-600 dark:text-gray-300"
+          >
+            <option value="">All Statuses</option>
+            {PROJECT_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setFilterOverdueTasks((v) => !v)}
+            className={`px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap ${filterOverdueTasks ? "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"}`}
+          >
+            Overdue Tasks
+          </button>
+          <button
+            onClick={() => setFilterOverdueInvoices((v) => !v)}
+            className={`px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors whitespace-nowrap ${filterOverdueInvoices ? "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"}`}
+          >
+            Overdue Invoices
+          </button>
+        </div>
+
         {loading ? (
           <p className="text-gray-400 text-sm">Loading…</p>
         ) : projects.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <p className="text-lg">No projects yet</p>
             <p className="text-sm mt-1">Click New Project to get started</p>
+          </div>
+        ) : displayed.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">
+            <p className="text-lg">No matching projects</p>
+            <p className="text-sm mt-1">Try adjusting your search or filters</p>
           </div>
         ) : (
           <div className="space-y-8">

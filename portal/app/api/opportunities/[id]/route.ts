@@ -51,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         if (cl) clientName = cl.name;
       }
 
-      const { data: project } = await supabaseAdmin
+      const { data: project, error: projError } = await supabaseAdmin
         .from("projects")
         .insert({
           name: oppName,
@@ -64,6 +64,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         .select("id")
         .single();
 
+      if (projError) return NextResponse.json({ error: `Failed to create project: ${projError.message}` }, { status: 502 });
       if (project) update.project_id = project.id;
     }
   }

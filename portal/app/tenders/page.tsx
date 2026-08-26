@@ -10,13 +10,15 @@ type ScraperResult = {
   error?: string;
 };
 
-type LastRun = {
-  "Run Time"?: string;
-  "Tenders Found"?: number;
-  "New Tenders"?: number;
-  "Status"?: string;
+type RunRow = {
+  "Run Time": string;
+  "Tenders Found": number;
+  "New Tenders": number;
+  "Status": string;
   "Notes"?: string;
-} | null;
+};
+
+type LastRun = Omit<RunRow, "Run Time"> & { "Run Time"?: string } | null;
 
 function formatRunTime(iso: string) {
   return new Date(iso).toLocaleString("en-GB", {
@@ -65,10 +67,70 @@ function LastRunInfo({ lastRun }: { lastRun: LastRun | undefined }) {
   );
 }
 
+function RunHistory({ history }: { history: RunRow[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (history.length === 0) return null;
+
+  return (
+    <div className="mt-5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center gap-1"
+      >
+        <span>{open ? "▾" : "▸"}</span>
+        {open ? "Hide" : "Show"} recent runs ({history.length})
+      </button>
+
+      {open && (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="text-left text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                <th className="pb-2 pr-4 font-medium whitespace-nowrap">Run Time</th>
+                <th className="pb-2 pr-4 font-medium">Status</th>
+                <th className="pb-2 pr-4 font-medium">Found</th>
+                <th className="pb-2 pr-4 font-medium">New</th>
+                <th className="pb-2 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((row, i) => (
+                <tr key={i} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    {formatRunTime(row["Run Time"])}
+                  </td>
+                  <td className="py-2 pr-4">
+                    {row["Status"] === "Error" ? (
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 font-medium">
+                        Error
+                      </span>
+                    ) : (
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 font-medium">
+                        OK
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">{row["Tenders Found"]}</td>
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">{row["New Tenders"]}</td>
+                  <td className="py-2 text-gray-500 dark:text-gray-500 max-w-xs truncate" title={row["Notes"] ?? ""}>
+                    {row["Notes"] ?? "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScraperCard({
   title,
   description,
   lastRun,
+  history,
   onRun,
   running,
   result,
@@ -76,6 +138,7 @@ function ScraperCard({
   title: string;
   description: string;
   lastRun: LastRun | undefined;
+  history: RunRow[];
   onRun: () => void;
   running: boolean;
   result: ScraperResult | null;
@@ -118,6 +181,8 @@ function ScraperCard({
           </div>
         </div>
       )}
+
+      <RunHistory history={history} />
     </div>
   );
 }
@@ -129,13 +194,17 @@ export default function TendersPage() {
   const [oetcResult, setOetcResult] = useState<ScraperResult | null>(null);
   const [namaLastRun, setNamaLastRun] = useState<LastRun | undefined>(undefined);
   const [oetcLastRun, setOetcLastRun] = useState<LastRun | undefined>(undefined);
+  const [namaHistory, setNamaHistory] = useState<RunRow[]>([]);
+  const [oetcHistory, setOetcHistory] = useState<RunRow[]>([]);
 
   useEffect(() => {
     fetch("/api/scraper-log")
       .then((r) => r.json())
       .then((data) => {
-        setNamaLastRun(data.nama ?? null);
-        setOetcLastRun(data.oetc ?? null);
+        setNamaLastRun(data.nama?.latest ?? null);
+        setOetcLastRun(data.oetc?.latest ?? null);
+        setNamaHistory(data.nama?.history ?? []);
+        setOetcHistory(data.oetc?.history ?? []);
       })
       .catch(() => {
         setNamaLastRun(null);
@@ -149,6 +218,7 @@ export default function TendersPage() {
     setRunning: (v: boolean) => void,
     setResult: (v: ScraperResult) => void,
     setLastRun: (v: LastRun) => void,
+    setHistory: (v: RunRow[]) => void,
   ) {
     setRunning(true);
     setResult(null as unknown as ScraperResult);
@@ -156,7 +226,7 @@ export default function TendersPage() {
     let priorRunTime: string | null = null;
     try {
       const logBefore = await fetch("/api/scraper-log").then((r) => r.json());
-      priorRunTime = logBefore[logKey]?.["Run Time"] ?? null;
+      priorRunTime = logBefore[logKey]?.latest?.["Run Time"] ?? null;
     } catch { /* ignore */ }
 
     try {
@@ -169,9 +239,11 @@ export default function TendersPage() {
           await new Promise((r) => setTimeout(r, 3000));
           try {
             const log = await fetch("/api/scraper-log").then((r) => r.json());
-            const latest = log[logKey] as LastRun;
+            const latest = log[logKey]?.latest as LastRun;
+            const history = log[logKey]?.history as RunRow[] ?? [];
             if (latest && latest["Run Time"] !== priorRunTime) {
               setLastRun(latest);
+              setHistory(history);
               if (latest["Status"] === "Error") {
                 setResult({ error: latest["Notes"] || "Scraper run failed" });
               } else {
@@ -213,9 +285,10 @@ export default function TendersPage() {
               title="Nama Scraper"
               description="Fetches live Nama tenders and saves any new ones to Supabase. Runs automatically at 7:30am and 2:30pm Dubai time."
               lastRun={namaLastRun}
+              history={namaHistory}
               running={namaRunning}
               result={namaResult}
-              onRun={() => runScraper("/api/run-scraper", "nama", setNamaRunning, setNamaResult, setNamaLastRun)}
+              onRun={() => runScraper("/api/run-scraper", "nama", setNamaRunning, setNamaResult, setNamaLastRun, setNamaHistory)}
             />
           </div>
 
@@ -227,9 +300,10 @@ export default function TendersPage() {
               title="OETC Scraper"
               description="Fetches live OETC tenders and saves any new ones to Supabase. Runs automatically at 7:30am and 2:30pm Dubai time."
               lastRun={oetcLastRun}
+              history={oetcHistory}
               running={oetcRunning}
               result={oetcResult}
-              onRun={() => runScraper("/api/run-scraper-oetc", "oetc", setOetcRunning, setOetcResult, setOetcLastRun)}
+              onRun={() => runScraper("/api/run-scraper-oetc", "oetc", setOetcRunning, setOetcResult, setOetcLastRun, setOetcHistory)}
             />
           </div>
         </div>
