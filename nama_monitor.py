@@ -7,6 +7,7 @@ Saves new tenders to Supabase. Email notification is handled by the cloud routin
 import os
 import requests
 import sys
+import time
 from datetime import datetime, timezone, date
 from bs4 import BeautifulSoup
 import urllib3
@@ -155,17 +156,32 @@ def main():
 
     print(f"Found {len(tenders)} tender(s) on portal.")
 
-    known = fetch_known_numbers()
-    print(f"{len(known)} tender(s) already in Supabase.")
+    for attempt in range(3):
+        try:
+            known = fetch_known_numbers()
+            print(f"{len(known)} tender(s) already in Supabase.")
 
-    new = [t for t in tenders if t["number"] not in known]
-    print(f"{len(new)} new tender(s).")
+            new = [t for t in tenders if t["number"] not in known]
+            print(f"{len(new)} new tender(s).")
 
-    if new:
-        save_tenders(new)
-        print(f"Saved {len(new)} new tender(s) to Supabase.")
+            if new:
+                save_tenders(new)
+                print(f"Saved {len(new)} new tender(s) to Supabase.")
 
-    write_log(run_time, len(tenders), len(new), "Success")
+            write_log(run_time, len(tenders), len(new), "Success")
+            break
+        except Exception as e:
+            if attempt < 2:
+                print(f"Supabase error (attempt {attempt + 1}/3): {e}, retrying in 20s...", file=sys.stderr)
+                time.sleep(20)
+                continue
+            msg = f"Supabase error: {e}"
+            print(msg, file=sys.stderr)
+            write_log(run_time, len(tenders), 0, "Error", msg)
+            send_error_email(
+                "Nama Scraper Error",
+                f"The Nama tender scraper failed at {run_time.strftime('%Y-%m-%d %H:%M UTC')}.\n\nError: {msg}\n\nPortal: https://ids-portal-gold.vercel.app/tenders",
+            )
 
 
 if __name__ == "__main__":

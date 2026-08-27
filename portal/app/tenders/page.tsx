@@ -129,6 +129,7 @@ function RunHistory({ history }: { history: RunRow[] }) {
 function ScraperCard({
   title,
   description,
+  portalUrl,
   lastRun,
   history,
   onRun,
@@ -137,6 +138,7 @@ function ScraperCard({
 }: {
   title: string;
   description: string;
+  portalUrl: string;
   lastRun: LastRun | undefined;
   history: RunRow[];
   onRun: () => void;
@@ -149,7 +151,17 @@ function ScraperCard({
     <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-semibold text-base">{title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-base">{title}</h3>
+            <a
+              href={portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-500 hover:text-blue-400 transition-colors"
+            >
+              Portal ↗
+            </a>
+          </div>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{description}</p>
           <div className="mt-3 text-sm space-y-1">
             <LastRunInfo lastRun={lastRun} />
@@ -284,6 +296,7 @@ export default function TendersPage() {
             <ScraperCard
               title="Nama Scraper"
               description="Fetches live Nama tenders and saves any new ones to Supabase. Runs automatically at 7:30am and 2:30pm Dubai time."
+              portalUrl="https://isupplier.nama.om:4443/OA_HTML/OA.jsp?OAFunc=TENNEDC"
               lastRun={namaLastRun}
               history={namaHistory}
               running={namaRunning}
@@ -299,6 +312,7 @@ export default function TendersPage() {
             <ScraperCard
               title="OETC Scraper"
               description="Fetches live OETC tenders and saves any new ones to Supabase. Runs automatically at 7:30am and 2:30pm Dubai time."
+              portalUrl="https://isupplier.nama.om:4443/OA_HTML/OA.jsp?OAFunc=XXTEN_TENDER_FLOAT_OETC_F"
               lastRun={oetcLastRun}
               history={oetcHistory}
               running={oetcRunning}
