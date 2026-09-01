@@ -44,7 +44,7 @@ export async function GET() {
   const poReceived = pos.filter(p => p.party_type === "client" && ["approved", "closed"].includes(p.status));
   const invoicesIssued = invoices.filter(i => i.party_type === "client" && ["submitted", "paid"].includes(i.status));
   const poIssued = pos.filter(p => p.party_type === "supplier" && ["approved", "closed"].includes(p.status));
-  const invoicesReceived = invoices.filter(i => i.party_type === "supplier" && ["submitted", "paid"].includes(i.status));
+  const invoicesReceived = invoices.filter(i => i.party_type === "supplier" && ["received", "paid"].includes(i.status));
 
   return NextResponse.json({
     po_received_aed: poReceived.reduce((s, p) => s + toAed(p.amount, p.currency), 0),

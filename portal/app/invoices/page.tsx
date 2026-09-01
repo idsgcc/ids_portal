@@ -261,7 +261,7 @@ export default function InvoicesPage() {
             <li><span className="font-medium text-emerald-700 dark:text-emerald-400">POs Received from Client</span> — Approved or closed POs issued to IDS by clients. Represents contracted revenue authorised by the client.</li>
             <li><span className="font-medium text-blue-700 dark:text-blue-400">Invoices Issued — Money In</span> — Client invoices we have submitted or collected. Represents money in or expected in.</li>
             <li><span className="font-medium text-amber-700 dark:text-amber-400">POs Issued to Supplier</span> — Approved or closed POs IDS has sent to suppliers. Represents committed spend to third parties.</li>
-            <li><span className="font-medium text-violet-700 dark:text-violet-400">Invoices Received — Money Out</span> — Supplier invoices submitted or paid. Represents money out or owed to suppliers.</li>
+            <li><span className="font-medium text-violet-700 dark:text-violet-400">Invoices Received — Money Out</span> — Supplier invoices with status Received or Paid. Represents money out or owed to suppliers.</li>
           </ul>
           {summary && !summary.rates_populated && (
             <p className="text-xs text-amber-600 dark:text-amber-400 font-medium pt-1">
@@ -275,7 +275,7 @@ export default function InvoicesPage() {
           <SummaryBox boxKey="po_received"       label="Purchase Orders Received from the Client"  sublabel="Approved or closed POs clients have issued to IDS"           value={summary?.po_received_aed ?? null}       selected={selected === "po_received"}       onClick={() => toggle("po_received")} />
           <SummaryBox boxKey="invoices_issued"   label="Invoices Issued — Money In"                sublabel="Client invoices with status Submitted or Paid"               value={summary?.invoices_issued_aed ?? null}   selected={selected === "invoices_issued"}   onClick={() => toggle("invoices_issued")} />
           <SummaryBox boxKey="po_issued"         label="Purchase Orders Issued to the Supplier"    sublabel="Approved or closed POs IDS has issued to suppliers"          value={summary?.po_issued_aed ?? null}         selected={selected === "po_issued"}         onClick={() => toggle("po_issued")} />
-          <SummaryBox boxKey="invoices_received" label="Invoices Received — Money Out"             sublabel="Supplier invoices with status Submitted or Paid"             value={summary?.invoices_received_aed ?? null} selected={selected === "invoices_received"} onClick={() => toggle("invoices_received")} />
+          <SummaryBox boxKey="invoices_received" label="Invoices Received — Money Out"             sublabel="Supplier invoices with status Received or Paid"             value={summary?.invoices_received_aed ?? null} selected={selected === "invoices_received"} onClick={() => toggle("invoices_received")} />
         </div>
 
         {/* Detail panel — rendered below the grid when a box is selected */}
