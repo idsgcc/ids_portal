@@ -391,9 +391,200 @@ function ModulePermissionsSection() {
   );
 }
 
+// ─── Finance ──────────────────────────────────────────────────────────────────
+
+type CurrencyRate = {
+  id: string;
+  currency: string;
+  rate_to_aed: number;
+  source: string;
+  updated_at: string;
+};
+
+const CURRENCY_FLAGS: Record<string, string> = {
+  EUR: "🇪🇺",
+  USD: "🇺🇸",
+  GBP: "🇬🇧",
+  OMR: "🇴🇲",
+};
+
+function FinanceSection() {
+  const [rates, setRates] = useState<CurrencyRate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/finance/rates")
+      .then((r) => r.json())
+      .then((data) => { setRates(data); setLoading(false); })
+      .catch(() => { setError("Failed to load rates"); setLoading(false); });
+  }, []);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/finance/refresh-rates", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Refresh failed");
+      setRates(data.rates.map((r: Omit<CurrencyRate, "id">) => ({
+        ...r,
+        id: rates.find((x) => x.currency === r.currency)?.id ?? "",
+      })));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleSave(currency: string) {
+    const raw = editing[currency];
+    const val = parseFloat(raw);
+    if (isNaN(val) || val <= 0) { setError("Enter a valid positive rate"); return; }
+
+    setSaving(currency);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/finance/rates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currency, rate_to_aed: val }),
+      });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated.error ?? "Save failed");
+      setRates((prev) => prev.map((r) => (r.currency === currency ? updated : r)));
+      setEditing((prev) => { const next = { ...prev }; delete next[currency]; return next; });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  if (loading) return <p className="text-sm text-gray-500">Loading…</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Exchange Rates → AED</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+            Rates are fetched daily from{" "}
+            <a href="https://frankfurter.app" target="_blank" rel="noopener noreferrer" className="underline">
+              frankfurter.app
+            </a>{" "}
+            (ECB data). OMR is derived from the USD rate using its official peg.
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        >
+          {refreshing ? (
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          ) : (
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          )}
+          Refresh Rates
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-400">Currency</th>
+              <th className="px-4 py-2.5 text-right font-medium text-gray-600 dark:text-gray-400">1 unit → AED</th>
+              <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-400">Source</th>
+              <th className="px-4 py-2.5 text-left font-medium text-gray-600 dark:text-gray-400">Updated</th>
+              <th className="px-4 py-2.5" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {rates.map((r) => {
+              const isEditing = r.currency in editing;
+              return (
+                <tr key={r.currency} className="bg-white dark:bg-gray-900">
+                  <td className="px-4 py-3 font-medium">
+                    <span className="mr-2">{CURRENCY_FLAGS[r.currency] ?? ""}</span>
+                    {r.currency}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        step="0.000001"
+                        min="0"
+                        value={editing[r.currency]}
+                        onChange={(e) => setEditing((prev) => ({ ...prev, [r.currency]: e.target.value }))}
+                        className="w-32 text-right px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm"
+                        autoFocus
+                      />
+                    ) : (
+                      r.rate_to_aed > 0
+                        ? r.rate_to_aed.toFixed(4)
+                        : <span className="text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 capitalize">{r.source}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400">
+                    {r.rate_to_aed > 0
+                      ? new Date(r.updated_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isEditing ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleSave(r.currency)}
+                          disabled={saving === r.currency}
+                          className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {saving === r.currency ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setEditing((prev) => { const next = { ...prev }; delete next[r.currency]; return next; })}
+                          className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-700"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditing((prev) => ({ ...prev, [r.currency]: r.rate_to_aed > 0 ? String(r.rate_to_aed) : "" }))}
+                        className="text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = ["Lookups", "Users", "Module Permissions"] as const;
+const TABS = ["Lookups", "Users", "Module Permissions", "Finance"] as const;
 type Tab = typeof TABS[number];
 
 export default function AdminPage() {
@@ -435,6 +626,8 @@ export default function AdminPage() {
         {tab === "Users" && <UsersSection />}
 
         {tab === "Module Permissions" && <ModulePermissionsSection />}
+
+        {tab === "Finance" && <FinanceSection />}
       </div>
     </main>
   );

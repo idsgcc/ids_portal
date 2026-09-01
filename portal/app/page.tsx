@@ -107,7 +107,7 @@ const ALL_SECTIONS: { heading: string; cards: { href: string; title: string; des
     heading: "Finance",
     cards: [
       { href: "/dashboard", title: "Dashboard", description: "High-level overview of projects, opportunities, and finance.", icon: <IconChart />, module: "dashboard" },
-      { href: "/invoices", title: "Invoices", description: "Invoices paid and outstanding across all projects.", icon: <IconReceipt />, module: "invoices" },
+      { href: "/invoices", title: "Purchase Orders / Invoices", description: "PO and invoice totals converted to AED across all projects.", icon: <IconReceipt />, module: "invoices" },
     ],
   },
   {
