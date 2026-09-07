@@ -7,6 +7,7 @@ Usage: python3 scraper_watchdog.py --source nama
 """
 import argparse
 import os
+import re
 import sys
 import requests
 from datetime import datetime, timezone, timedelta
@@ -91,10 +92,12 @@ def main():
     if row:
         # parse ISO timestamp from Supabase (e.g. "2026-08-13 03:30:03+00")
         run_time_str = row["run_time"].replace(" ", "T")
-        if not run_time_str.endswith("Z") and "+" not in run_time_str[-6:]:
-            run_time_str += "Z"
+        # Supabase returns +00 not +00:00; Python 3.9 fromisoformat needs HH:MM
+        run_time_str = re.sub(r'([+-]\d{2})$', r'\1:00', run_time_str)
+        if run_time_str.endswith("Z"):
+            run_time_str = run_time_str[:-1] + "+00:00"
         try:
-            run_dt = datetime.fromisoformat(run_time_str.replace("Z", "+00:00"))
+            run_dt = datetime.fromisoformat(run_time_str)
         except ValueError:
             run_dt = None
 
