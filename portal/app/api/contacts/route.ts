@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const companyName = searchParams.get("company_name");
+
   const PAGE = 1000;
   const all: Record<string, unknown>[] = [];
   let from = 0;
 
   while (true) {
-    const { data, error } = await supabaseAdmin
+    let q = supabaseAdmin
       .from("contacts")
       .select("id, name, company_name, title, phone, mobile, email")
       .order("name")
       .range(from, from + PAGE - 1);
+    if (companyName) q = q.eq("company_name", companyName);
+    const { data, error } = await q;
     if (error) return NextResponse.json({ error: error.message }, { status: 502 });
     all.push(...(data ?? []));
     if (!data || data.length < PAGE) break;

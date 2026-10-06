@@ -4,6 +4,15 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+type Contact = {
+  id: string;
+  name: string | null;
+  title: string | null;
+  phone: string | null;
+  mobile: string | null;
+  email: string | null;
+};
+
 type Company = {
   id: string;
   name: string;
@@ -64,6 +73,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
 
   const [company, setCompany] = useState<Company | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -83,6 +93,11 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
       setCompany(co);
       setCountries(lkps.map((l: { value: string }) => l.value));
       setLoading(false);
+      if (co?.name) {
+        fetch(`/api/contacts?company_name=${encodeURIComponent(co.name)}`)
+          .then((r) => r.json())
+          .then(setContacts);
+      }
     });
   }, [id]);
 
@@ -311,6 +326,36 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {contacts.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+              Contacts ({contacts.length})
+            </h2>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+              {contacts.map((ct, i) => (
+                <Link
+                  key={ct.id}
+                  href={`/contacts/${ct.id}`}
+                  className={`flex items-center gap-3 px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors ${i > 0 ? "border-t border-gray-100 dark:border-gray-800" : ""}`}
+                >
+                  <div className={`w-8 h-8 rounded-lg ${avatarColor(ct.name ?? "?")} flex items-center justify-center text-white font-bold text-[10px] shrink-0`}>
+                    {initials(ct.name ?? "?")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{ct.name || <span className="text-gray-400">—</span>}</p>
+                    {ct.title && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{ct.title}</p>}
+                  </div>
+                  <div className="text-right shrink-0 space-y-0.5">
+                    {ct.email && <p className="text-xs text-blue-600 dark:text-blue-400 truncate max-w-48">{ct.email}</p>}
+                    {ct.mobile && <p className="text-xs text-gray-500 dark:text-gray-400">{ct.mobile}</p>}
+                    {!ct.mobile && ct.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{ct.phone}</p>}
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 
