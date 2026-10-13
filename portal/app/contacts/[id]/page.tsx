@@ -8,13 +8,74 @@ type Contact = {
   id: string;
   name: string | null;
   company_name: string | null;
+  company_id: string | null;
   title: string | null;
   phone: string | null;
   mobile: string | null;
   email: string | null;
 };
 
-type FormState = { name: string; company_name: string; title: string; phone: string; mobile: string; email: string };
+type CompanyOption = { id: string; name: string };
+
+type FormState = { name: string; company_name: string; company_id: string; title: string; phone: string; mobile: string; email: string };
+
+function CompanyPicker({
+  companyId,
+  companyName,
+  companies,
+  onChange,
+}: {
+  companyId: string;
+  companyName: string;
+  companies: CompanyOption[];
+  onChange: (id: string, name: string) => void;
+}) {
+  const [query, setQuery] = useState(companyName);
+  const [open, setOpen] = useState(false);
+
+  const filtered = query.trim().length > 0
+    ? companies.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    : [];
+
+  const isLinked = !!companyId;
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            onChange("", e.target.value);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Search companies…"
+          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 pr-8"
+        />
+        {isLinked && (
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500 text-xs font-medium pointer-events-none">✓</span>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onMouseDown={() => { onChange(c.id, c.name); setQuery(c.name); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const AVATAR_COLORS = [
   "bg-blue-600", "bg-indigo-600", "bg-violet-600",
@@ -37,9 +98,10 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
 
   const [contact, setContact] = useState<Contact | null>(null);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<FormState>({ name: "", company_name: "", title: "", phone: "", mobile: "", email: "" });
+  const [form, setForm] = useState<FormState>({ name: "", company_name: "", company_id: "", title: "", phone: "", mobile: "", email: "" });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -56,6 +118,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     setForm({
       name: contact.name ?? "",
       company_name: contact.company_name ?? "",
+      company_id: contact.company_id ?? "",
       title: contact.title ?? "",
       phone: contact.phone ?? "",
       mobile: contact.mobile ?? "",
@@ -63,6 +126,11 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     });
     setSaveError(null);
     setEditing(true);
+    if (companies.length === 0) {
+      fetch("/api/companies").then((r) => r.json()).then((data) =>
+        setCompanies((data as CompanyOption[]).map(({ id, name }) => ({ id, name })))
+      );
+    }
   }
 
   async function save() {
@@ -71,7 +139,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     const res = await fetch(`/api/contacts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, company_id: form.company_id || null }),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
@@ -133,10 +201,10 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
 
         {editing ? (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-3">
-            {(["name", "company_name", "title", "phone", "mobile", "email"] as const).map((field) => (
+            {(["name", "title", "phone", "mobile", "email"] as const).map((field) => (
               <div key={field}>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  {field === "company_name" ? "Company" : field.charAt(0).toUpperCase() + field.slice(1)}
+                  {field.charAt(0).toUpperCase() + field.slice(1)}
                 </label>
                 <input
                   type={field === "email" ? "email" : field === "phone" || field === "mobile" ? "tel" : "text"}
@@ -147,6 +215,15 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                 />
               </div>
             ))}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Company</label>
+              <CompanyPicker
+                companyId={form.company_id}
+                companyName={form.company_name}
+                companies={companies}
+                onChange={(id, name) => setForm((f) => ({ ...f, company_id: id, company_name: name }))}
+              />
+            </div>
             {saveError && <p className="text-xs text-red-500">{saveError}</p>}
             <div className="flex gap-2 pt-1">
               <button onClick={save} disabled={saving} className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors disabled:opacity-50">
@@ -161,7 +238,6 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
             {[
               { label: "Name", value: contact.name },
-              { label: "Company", value: contact.company_name },
               { label: "Title", value: contact.title },
               { label: "Phone", value: contact.phone, href: contact.phone ? `tel:${contact.phone}` : undefined },
               { label: "Mobile", value: contact.mobile, href: contact.mobile ? `tel:${contact.mobile}` : undefined },
@@ -180,6 +256,18 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                 )}
               </div>
             ))}
+            <div className="flex justify-between items-center px-5 py-3">
+              <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0 w-24">Company</span>
+              {contact.company_id ? (
+                <Link href={`/companies/${contact.company_id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline text-right truncate">
+                  {contact.company_name || contact.company_id}
+                </Link>
+              ) : contact.company_name ? (
+                <span className="text-sm font-medium text-right truncate">{contact.company_name}</span>
+              ) : (
+                <span className="text-sm text-gray-300 dark:text-gray-600">—</span>
+              )}
+            </div>
           </div>
         )}
 

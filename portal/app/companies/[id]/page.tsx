@@ -93,8 +93,8 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
       setCompany(co);
       setCountries(lkps.map((l: { value: string }) => l.value));
       setLoading(false);
-      if (co?.name) {
-        fetch(`/api/contacts?company_name=${encodeURIComponent(co.name)}`)
+      if (id) {
+        fetch(`/api/contacts?company_id=${encodeURIComponent(id)}`)
           .then((r) => r.json())
           .then(setContacts);
       }
