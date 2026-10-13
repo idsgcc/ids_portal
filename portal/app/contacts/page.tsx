@@ -4,20 +4,22 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
+import { CompanyPicker, type CompanyOption } from "@/components/CompanyPicker";
 
 type Contact = {
   id: string;
   name: string | null;
   company_name: string | null;
+  company_id: string | null;
   title: string | null;
   phone: string | null;
   mobile: string | null;
   email: string | null;
 };
 
-type FormState = { name: string; company_name: string; title: string; phone: string; mobile: string; email: string };
+type FormState = { name: string; company_name: string; company_id: string; title: string; phone: string; mobile: string; email: string };
 
-const EMPTY_FORM: FormState = { name: "", company_name: "", title: "", phone: "", mobile: "", email: "" };
+const EMPTY_FORM: FormState = { name: "", company_name: "", company_id: "", title: "", phone: "", mobile: "", email: "" };
 
 const AVATAR_COLORS = [
   "bg-blue-600", "bg-indigo-600", "bg-violet-600",
@@ -61,17 +63,24 @@ function ContactModal({
     isNew ? EMPTY_FORM : {
       name: contact.name ?? "",
       company_name: contact.company_name ?? "",
+      company_id: contact.company_id ?? "",
       title: contact.title ?? "",
       phone: contact.phone ?? "",
       mobile: contact.mobile ?? "",
       email: contact.email ?? "",
     }
   );
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { firstRef.current?.focus(); }, []);
+  useEffect(() => {
+    firstRef.current?.focus();
+    fetch("/api/companies").then((r) => r.json()).then((data) =>
+      setCompanies((data as CompanyOption[]).map(({ id, name }) => ({ id, name })))
+    );
+  }, []);
 
   function set(field: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -82,7 +91,7 @@ function ContactModal({
     setError(null);
     const url = isNew ? "/api/contacts" : `/api/contacts/${contact!.id}`;
     const method = isNew ? "POST" : "PATCH";
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, company_id: form.company_id || null }) });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       setError(d.error ?? "Something went wrong");
@@ -103,10 +112,10 @@ function ContactModal({
           </button>
         </div>
         <div className="px-6 py-4 space-y-3">
-          {(["name", "company_name", "title", "phone", "mobile", "email"] as const).map((field, i) => (
+          {(["name", "title", "phone", "mobile", "email"] as const).map((field, i) => (
             <div key={field}>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 capitalize">
-                {field === "company_name" ? "Company" : field.charAt(0).toUpperCase() + field.slice(1)}
+                {field.charAt(0).toUpperCase() + field.slice(1)}
               </label>
               <input
                 ref={i === 0 ? firstRef : undefined}
@@ -118,6 +127,15 @@ function ContactModal({
               />
             </div>
           ))}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Company</label>
+            <CompanyPicker
+              companyId={form.company_id}
+              companyName={form.company_name}
+              companies={companies}
+              onChange={(id, name) => setForm((f) => ({ ...f, company_id: id, company_name: name }))}
+            />
+          </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 dark:border-gray-800">

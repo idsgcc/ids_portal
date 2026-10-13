@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CompanyPicker, type CompanyOption } from "@/components/CompanyPicker";
 
 type Contact = {
   id: string;
@@ -15,67 +16,7 @@ type Contact = {
   email: string | null;
 };
 
-type CompanyOption = { id: string; name: string };
-
 type FormState = { name: string; company_name: string; company_id: string; title: string; phone: string; mobile: string; email: string };
-
-function CompanyPicker({
-  companyId,
-  companyName,
-  companies,
-  onChange,
-}: {
-  companyId: string;
-  companyName: string;
-  companies: CompanyOption[];
-  onChange: (id: string, name: string) => void;
-}) {
-  const [query, setQuery] = useState(companyName);
-  const [open, setOpen] = useState(false);
-
-  const filtered = query.trim().length > 0
-    ? companies.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
-    : [];
-
-  const isLinked = !!companyId;
-
-  return (
-    <div className="relative">
-      <div className="relative">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-            onChange("", e.target.value);
-          }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder="Search companies…"
-          className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 pr-8"
-        />
-        {isLinked && (
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500 text-xs font-medium pointer-events-none">✓</span>
-        )}
-      </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          {filtered.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onMouseDown={() => { onChange(c.id, c.name); setQuery(c.name); setOpen(false); }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 const AVATAR_COLORS = [
   "bg-blue-600", "bg-indigo-600", "bg-violet-600",
