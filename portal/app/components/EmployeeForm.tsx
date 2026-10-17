@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -9,6 +9,9 @@ type FormData = {
   dob: string;
   join_date: string;
   handle: string;
+  location: string;
+  sick_leave_days: string;
+  profile_id: string;
   passport_number: string;
   passport_expiry: string;
   passport_doc_url: string;
@@ -25,6 +28,7 @@ type FormData = {
 
 const EMPTY: FormData = {
   full_name: "", dob: "", join_date: "", handle: "",
+  location: "uae", sick_leave_days: "15", profile_id: "",
   passport_number: "", passport_expiry: "", passport_doc_url: "",
   emirates_id_number: "", emirates_id_expiry: "", emirates_id_doc_url: "",
   visa_file_no: "", visa_expiry: "", visa_doc_url: "",
@@ -52,6 +56,8 @@ function SectionHeader({ icon, title }: { icon: string; title: string }) {
   );
 }
 
+type Profile = { id: string; full_name: string };
+
 export default function EmployeeForm({
   initial,
   employeeId,
@@ -62,6 +68,11 @@ export default function EmployeeForm({
   const router = useRouter();
   const [form, setForm] = useState<FormData>({ ...EMPTY, ...initial });
   const [saving, setSaving] = useState(false);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+
+  useEffect(() => {
+    fetch("/api/profiles").then((r) => r.json()).then(setProfiles);
+  }, []);
 
   function set(key: keyof FormData, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -83,9 +94,10 @@ export default function EmployeeForm({
     if (!form.full_name.trim()) return;
     setSaving(true);
 
-    const body = Object.fromEntries(
+    const body: Record<string, string | number | null> = Object.fromEntries(
       Object.entries(form).map(([k, v]) => [k, v.trim() || null])
     );
+    if (body.sick_leave_days !== null) body.sick_leave_days = Number(body.sick_leave_days);
 
     if (employeeId) {
       await fetch(`/api/employees/${employeeId}`, {
@@ -126,6 +138,31 @@ export default function EmployeeForm({
             <Field label="Join Date">{input("join_date", "date")}</Field>
           </div>
           <Field label="Handle (without @)">{input("handle", "text", "paul")}</Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Location">
+              <select
+                className={inputCls}
+                value={form.location}
+                onChange={(e) => set("location", e.target.value)}
+              >
+                <option value="uae">UAE (Mon–Fri)</option>
+                <option value="oman">Oman (Sun–Thu)</option>
+              </select>
+            </Field>
+            <Field label="Sick Leave Days / Year">{input("sick_leave_days", "number", "15")}</Field>
+          </div>
+          <Field label="Portal Account (for self-service leave)">
+            <select
+              className={inputCls}
+              value={form.profile_id}
+              onChange={(e) => set("profile_id", e.target.value)}
+            >
+              <option value="">— Not linked —</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>{p.full_name}</option>
+              ))}
+            </select>
+          </Field>
 
           {/* Passport */}
           <SectionHeader icon="📋" title="Passport" />

@@ -15,6 +15,8 @@ const NAV_ITEMS = [
   ]},
   { group: "Employees", items: [
     { label: "Employees", href: "/employees", module: "employees" },
+    { label: "Employee Leave", href: "/leave", module: "employee-leave" },
+    { label: "Leave Requests", href: "/leave/requests", module: "leave-requests" },
   ]},
   { group: "Contacts", items: [
     { label: "Companies", href: "/companies", module: "companies" },

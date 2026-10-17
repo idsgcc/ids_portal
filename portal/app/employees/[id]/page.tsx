@@ -11,6 +11,8 @@ type Employee = {
   join_date: string | null;
   handle: string | null;
   status: string;
+  location: string;
+  sick_leave_days: number;
   passport_number: string | null;
   passport_expiry: string | null;
   passport_doc_url: string | null;
@@ -156,11 +158,19 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
               {employee.join_date && (
                 <p className="text-sm text-orange-500 font-medium mt-0.5">Joined: {fmtDate(employee.join_date)}</p>
               )}
-              {employee.handle && (
-                <span className="inline-block mt-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-3 py-0.5">
-                  @{employee.handle}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {employee.handle && (
+                  <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-3 py-0.5">
+                    @{employee.handle}
+                  </span>
+                )}
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full px-3 py-0.5">
+                  {employee.location === "oman" ? "🇴🇲 Oman" : "🇦🇪 UAE"}
                 </span>
-              )}
+                <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full px-3 py-0.5">
+                  {employee.sick_leave_days ?? 15}d sick leave / yr
+                </span>
+              </div>
             </div>
           </div>
         </div>
