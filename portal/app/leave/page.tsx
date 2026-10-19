@@ -108,6 +108,12 @@ function getActiveEntitlement(empId: string, entitlements: Entitlement[], offset
   return ents[idx] ?? null;
 }
 
+function getYearEntitlement(empId: string, year: number, entitlements: Entitlement[]): Entitlement | null {
+  const from = `${year}-01-01`;
+  const to = `${year}-12-31`;
+  return getEntitlements(empId, entitlements).find((e) => e.period_start <= to && e.period_end >= from) ?? null;
+}
+
 function leaveUsed(empId: string, type: string, from: string, to: string, records: LeaveRecord[]): number {
   return records
     .filter((r) => r.employee_id === empId && r.type === type && r.end_date >= from && r.start_date <= to)
@@ -184,15 +190,24 @@ export default function EmployeeLeavePage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Reset modal sub-state when employee changes
+  // Reset modal sub-state when employee changes; default Annual tab to today's year
   useEffect(() => {
+    if (!modalEmp) return;
     setActiveTab("all");
-    setPeriodOffset(0);
     setShowEntryForm(false);
     setShowEntForm(false);
     setEntryEditId(null);
     setEntEditId(null);
-  }, [modalEmp?.id]);
+
+    const todayYear = new Date().getFullYear();
+    const from = `${todayYear}-01-01`;
+    const to = `${todayYear}-12-31`;
+    const empEnts = entitlements
+      .filter((e) => e.employee_id === modalEmp.id)
+      .sort((a, b) => b.period_start.localeCompare(a.period_start));
+    const idx = empEnts.findIndex((e) => e.period_start <= to && e.period_end >= from);
+    setPeriodOffset(idx >= 0 ? -idx : 0);
+  }, [modalEmp?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Entry form helpers ───────────────────────────────────────────────────
 
@@ -387,7 +402,7 @@ export default function EmployeeLeavePage() {
       <div className="mb-6 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3">
         <div className="flex items-center gap-2 mb-2.5">
           <button onClick={() => setHolYear((y) => y - 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm">◁</button>
-          <span className="font-semibold text-sm">{holYear} Bank Holidays</span>
+          <span className="font-semibold text-sm">{holYear}</span>
           <button onClick={() => setHolYear((y) => y + 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm">▷</button>
         </div>
         <div className="space-y-1.5">
@@ -435,8 +450,9 @@ export default function EmployeeLeavePage() {
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {employees.map((emp) => {
-              const ent = getActiveEntitlement(emp.id, entitlements);
-              const { from: cyFrom, to: cyTo } = calendarYearBounds();
+              const ent = getYearEntitlement(emp.id, holYear, entitlements);
+              const cyFrom = `${holYear}-01-01`;
+              const cyTo = `${holYear}-12-31`;
               const annualUsed = ent ? leaveUsed(emp.id, "Annual", ent.period_start, ent.period_end, records) : 0;
               const annualRemaining = ent ? ent.days - annualUsed : null;
               const sickUsed = leaveUsed(emp.id, "Sick", cyFrom, cyTo, records);
@@ -521,6 +537,7 @@ export default function EmployeeLeavePage() {
       {modalEmp && (
         <EmployeeModal
           emp={modalEmp}
+          year={holYear}
           records={records}
           entitlements={entitlements}
           tickets={tickets}
@@ -562,6 +579,7 @@ export default function EmployeeLeavePage() {
 
 type ModalProps = {
   emp: Employee;
+  year: number;
   records: LeaveRecord[];
   entitlements: Entitlement[];
   tickets: Ticket[];
@@ -596,7 +614,7 @@ type ModalProps = {
 };
 
 function EmployeeModal(p: ModalProps) {
-  const { emp, records, entitlements, tickets, holidays } = p;
+  const { emp, year, records, entitlements, tickets, holidays } = p;
 
   const empEnts = getEntitlements(emp.id, entitlements);
   const currentEnt = empEnts[0] ?? null;
@@ -605,7 +623,8 @@ function EmployeeModal(p: ModalProps) {
   const displayIdx = -p.periodOffset;
   const displayEnt = empEnts[displayIdx] ?? currentEnt;
 
-  const { from: cyFrom, to: cyTo } = calendarYearBounds();
+  const cyFrom = `${year}-01-01`;
+  const cyTo = `${year}-12-31`;
 
   const empRecords = records.filter((r) => r.employee_id === emp.id);
   const periodRecords = displayEnt
@@ -771,7 +790,7 @@ function EmployeeModal(p: ModalProps) {
             <div>
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <KpiCard label="Annual Entitlement" value={`${emp.sick_leave_days}d`} sub="Calendar year" />
-                <KpiCard label="Used This Year" value={`${sickUsed.toFixed(1)}d`} />
+                <KpiCard label={`Used in ${year}`} value={`${sickUsed.toFixed(1)}d`} />
               </div>
               {sickRecords.map((r) => <RecordRow key={r.id} r={r} />)}
               {sickRecords.length === 0 && <p className="text-sm text-gray-400 mb-4">No sick leave this year.</p>}

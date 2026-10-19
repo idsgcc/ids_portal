@@ -20,7 +20,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // Fetch the request before deleting so we can clean up its leave record if approved
+  const { data: req } = await supabaseAdmin
+    .from("leave_requests")
+    .select("status, employee_id, date_out, date_in")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabaseAdmin.from("leave_requests").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+
+  // Remove the matching leave record that was created on approval
+  if (req?.status === "Approved") {
+    await supabaseAdmin
+      .from("leave_records")
+      .delete()
+      .eq("employee_id", req.employee_id)
+      .eq("start_date", req.date_out)
+      .eq("end_date", req.date_in);
+  }
+
   return NextResponse.json({ ok: true });
 }

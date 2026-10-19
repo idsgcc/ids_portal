@@ -22,6 +22,12 @@ const EVENT_TYPES = [
 
 const EMPTY_FORM = { title: "", date: "", type: "other", notes: "", project_id: "" };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function startOfWeek(d: Date): Date {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -32,7 +38,7 @@ function groupKey(dateStr: string, view: View): string {
   const d = new Date(dateStr + "T00:00:00");
   if (view === "day") return dateStr;
   if (view === "week") return startOfWeek(d).toISOString().slice(0, 10);
-  return dateStr.slice(0, 7); // YYYY-MM
+  return dateStr.slice(0, 7);
 }
 
 function groupLabel(key: string, view: View): string {
@@ -73,6 +79,12 @@ function leftAccent(ev: CalEvent) {
   return "border-l-purple-400";
 }
 
+function pillColour(ev: CalEvent): string {
+  if (ev.type === "task") return "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300";
+  if (ev.type === "invoice") return "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300";
+  return "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300";
+}
+
 function groupEvents(events: CalEvent[], view: View): [string, CalEvent[]][] {
   const map = new Map<string, CalEvent[]>();
   for (const ev of events) {
@@ -83,11 +95,204 @@ function groupEvents(events: CalEvent[], view: View): [string, CalEvent[]][] {
   return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
+// ── Month grid calendar ───────────────────────────────────────────────────────
+
+function EventPill({ ev, onDelete }: { ev: CalEvent; onDelete: (ev: CalEvent) => void }) {
+  return (
+    <div
+      className={`group flex items-center gap-1 px-1.5 py-px rounded text-[11px] font-medium leading-snug ${pillColour(ev)}`}
+      title={`${ev.title}${ev.project ? ` · ${ev.project.name}` : ""}`}
+    >
+      <span className="truncate flex-1 min-w-0">{ev.title}</span>
+      {ev.type === "custom" && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(ev); }}
+          className="opacity-0 group-hover:opacity-100 shrink-0 transition-opacity hover:text-red-500 text-[10px] leading-none"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MonthCalendar({
+  events,
+  today,
+  onDelete,
+}: {
+  events: CalEvent[];
+  today: Date;
+  onDelete: (ev: CalEvent) => void;
+}) {
+  const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const year = month.getFullYear();
+  const monthIdx = month.getMonth();
+
+  // Monday-first: compute how many blank cells before day 1
+  const firstDayOfMonth = new Date(year, monthIdx, 1);
+  const startOffset = (firstDayOfMonth.getDay() + 6) % 7; // Mon=0 … Sun=6
+
+  // Start grid on the Monday on or before day 1
+  const gridStart = new Date(year, monthIdx, 1 - startOffset);
+
+  // Always show 6 complete weeks (42 cells)
+  const days: Date[] = [];
+  const cur = new Date(gridStart);
+  for (let i = 0; i < 42; i++) {
+    days.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const todayStr = localDateStr(today);
+  const monthTitle = month.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
+  const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const MAX_PILLS = 3;
+
+  return (
+    <div>
+      {/* Month nav header */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xl font-bold">{monthTitle}</h2>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setMonth(new Date(year, monthIdx - 1, 1))}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          >
+            ◁
+          </button>
+          <button
+            onClick={() => setMonth(new Date(today.getFullYear(), today.getMonth(), 1))}
+            className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setMonth(new Date(year, monthIdx + 1, 1))}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          >
+            ▷
+          </button>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800">
+        {/* Day-of-week header */}
+        <div className="grid grid-cols-7">
+          {DOW.map((d, i) => (
+            <div
+              key={d}
+              className={`text-xs font-semibold text-center py-2 border-b border-gray-200 dark:border-gray-800 ${
+                i >= 5
+                  ? "bg-gray-100 dark:bg-gray-800/80 text-gray-400 dark:text-gray-500"
+                  : "bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400"
+              } ${i > 0 ? "border-l border-gray-200 dark:border-gray-800" : ""}`}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Day cells — 6 rows of 7 */}
+        <div className="grid grid-cols-7">
+          {days.map((day, idx) => {
+            const ds = localDateStr(day);
+            const isCurrentMonth = day.getMonth() === monthIdx;
+            const isToday = ds === todayStr;
+            const dow = idx % 7; // 0=Mon … 6=Sun
+            const isWeekend = dow >= 5;
+            const dayEvents = events.filter((e) => e.date === ds);
+            const visible = dayEvents.slice(0, MAX_PILLS);
+            const overflow = dayEvents.length - MAX_PILLS;
+            // Label first day with abbreviated month
+            const isFirstOfMonth = day.getDate() === 1;
+            const monthAbbr = day.toLocaleDateString("en-GB", { month: "short" });
+
+            return (
+              <div
+                key={ds}
+                className={`min-h-[110px] flex flex-col p-1.5 ${
+                  idx > 6 ? "border-t border-gray-200 dark:border-gray-800" : ""
+                } ${
+                  idx % 7 !== 0 ? "border-l border-gray-200 dark:border-gray-800" : ""
+                } ${
+                  isWeekend
+                    ? isCurrentMonth
+                      ? "bg-gray-50/70 dark:bg-gray-900/40"
+                      : "bg-gray-100/60 dark:bg-gray-900/60"
+                    : isCurrentMonth
+                    ? "bg-white dark:bg-gray-950"
+                    : "bg-gray-50/50 dark:bg-gray-900/50"
+                }`}
+              >
+                {/* Date number */}
+                <div className="flex justify-end mb-1">
+                  <span
+                    className={`flex items-center gap-1 text-xs font-medium leading-none ${
+                      isToday
+                        ? "bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                        : isCurrentMonth
+                        ? "text-gray-700 dark:text-gray-200"
+                        : "text-gray-300 dark:text-gray-600"
+                    }`}
+                  >
+                    {isToday ? (
+                      day.getDate()
+                    ) : (
+                      <>
+                        {day.getDate()}
+                        {isFirstOfMonth && (
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">
+                            {monthAbbr}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </span>
+                </div>
+
+                {/* Event pills */}
+                <div className="space-y-0.5 flex-1">
+                  {visible.map((ev) => (
+                    <EventPill key={ev.id} ev={ev} onDelete={onDelete} />
+                  ))}
+                  {overflow > 0 && (
+                    <p className="text-[10px] text-gray-400 pl-0.5">+{overflow} more</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-5 mt-3 px-1">
+        {[
+          { colour: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300", label: "Task deadline" },
+          { colour: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300", label: "Invoice due" },
+          { colour: "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300", label: "Custom event" },
+        ].map(({ colour, label }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span className={`text-[11px] px-1.5 py-px rounded font-medium ${colour}`}>●</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<View>("week");
+  const [view, setView] = useState<View>("month");
   const [showPast, setShowPast] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -134,7 +339,7 @@ export default function CalendarPage() {
 
   return (
     <main className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <Link href="/projects" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
           ← Back to projects
         </Link>
@@ -145,7 +350,6 @@ export default function CalendarPage() {
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Key dates across all projects</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* View toggle */}
             <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-sm font-medium">
               {(["day", "week", "month"] as View[]).map((v) => (
                 <button
@@ -251,9 +455,12 @@ export default function CalendarPage() {
 
         {loading ? (
           <p className="text-gray-400 text-sm">Loading…</p>
+        ) : view === "month" ? (
+          /* ── Month grid view ── */
+          <MonthCalendar events={events} today={today} onDelete={deleteEvent} />
         ) : (
+          /* ── Day / Week list view ── */
           <div className="space-y-8">
-            {/* Past events */}
             {past.length > 0 && (
               <section>
                 <button
@@ -277,7 +484,6 @@ export default function CalendarPage() {
               </section>
             )}
 
-            {/* Grouped upcoming events */}
             {groups.length === 0 ? (
               <div className="text-center py-20 text-gray-400">
                 <p className="text-lg">No upcoming dates</p>
@@ -307,6 +513,8 @@ export default function CalendarPage() {
   );
 }
 
+// ── List-view event row (day / week views) ────────────────────────────────────
+
 function EventRow({
   ev, onDelete, past, showDate,
 }: {
@@ -321,7 +529,6 @@ function EventRow({
 
   return (
     <div className={`flex items-start gap-4 px-4 py-3 border-l-4 ${leftAccent(ev)} ${past ? "opacity-50" : ""}`}>
-      {/* Date — hidden in Day view since the section header already shows it */}
       {showDate && (
         <div className="w-24 shrink-0 text-right">
           <p className={`text-sm font-medium ${
@@ -336,14 +543,11 @@ function EventRow({
           {isSoon && <p className="text-xs text-amber-500 font-medium">In {daysUntil}d</p>}
         </div>
       )}
-      {/* In Day view, still show Today/Soon indicator inline */}
       {!showDate && (isToday || isSoon) && (
         <span className={`text-xs font-medium shrink-0 ${isToday ? "text-blue-500" : "text-amber-500"}`}>
           {isToday ? "Today" : `In ${daysUntil}d`}
         </span>
       )}
-
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{ev.title}</span>
@@ -360,8 +564,6 @@ function EventRow({
           )}
         </div>
       </div>
-
-      {/* Delete (custom events only) */}
       {ev.type === "custom" && (
         <button
           onClick={() => onDelete(ev)}

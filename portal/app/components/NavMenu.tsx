@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   ]},
   { group: "Settings", items: [
     { label: "Admin", href: "/admin", module: "admin" },
+    { label: "Diagnostics", href: "/diagnostics", module: "admin" },
   ]},
 ];
 

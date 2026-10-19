@@ -91,101 +91,158 @@ function YearCalendar({ year, requests, employees }: {
   requests: LeaveRequest[];
   employees: Employee[];
 }) {
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd = new Date(year, 11, 31);
-  const totalDays = Math.round((yearEnd.getTime() - yearStart.getTime()) / 86400000) + 1;
-
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(year, i, 1);
-    const daysInMonth = new Date(year, i + 1, 0).getDate();
-    const offsetDays = Math.round((d.getTime() - yearStart.getTime()) / 86400000);
-    return {
-      name: d.toLocaleDateString("en-GB", { month: "short" }),
-      offset: (offsetDays / totalDays) * 100,
-      width: (daysInMonth / totalDays) * 100,
-    };
-  });
+  const empColour = new Map<string, string>(
+    employees.map((emp, i) => [emp.id, EMP_COLOURS[i % EMP_COLOURS.length]])
+  );
 
   const approved = requests.filter((r) => r.status === "Approved");
 
-  const rows = employees
-    .map((emp, i) => ({
-      emp,
-      colour: EMP_COLOURS[i % EMP_COLOURS.length],
-      reqs: approved.filter(
-        (r) =>
-          r.employee_id === emp.id &&
-          r.date_in >= `${year}-01-01` &&
-          r.date_out <= `${year}-12-31`
-      ),
-    }))
-    .filter((row) => row.reqs.length > 0);
-
-  if (rows.length === 0) {
-    return <p className="text-xs text-gray-400 text-center py-3">No approved leave recorded for {year}.</p>;
+  // Build date → [employeeId, ...] for every day in the year
+  const dayMap = new Map<string, string[]>();
+  for (const req of approved) {
+    const cur = parseLocalDate(req.date_out);
+    const end = parseLocalDate(req.date_in);
+    while (cur <= end) {
+      const ds = localDateStr(cur);
+      if (ds >= `${year}-01-01` && ds <= `${year}-12-31`) {
+        const list = dayMap.get(ds);
+        if (list) {
+          if (!list.includes(req.employee_id)) list.push(req.employee_id);
+        } else {
+          dayMap.set(ds, [req.employee_id]);
+        }
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
   }
+
+  const today = localDateStr(new Date());
+  const DOW_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+
+  const legendEmps = employees.filter((emp) =>
+    approved.some(
+      (r) =>
+        r.employee_id === emp.id &&
+        Number(r.date_out.slice(0, 4)) <= year &&
+        Number(r.date_in.slice(0, 4)) >= year
+    )
+  );
 
   return (
     <div>
-      {/* Month header */}
-      <div className="flex mb-0.5 pl-[7.5rem]">
-        {months.map((m) => (
-          <div
-            key={m.name}
-            className="text-[10px] text-gray-400 font-medium text-center overflow-hidden"
-            style={{ width: `${m.width}%`, flexShrink: 0 }}
-          >
-            {m.name}
-          </div>
-        ))}
-      </div>
+      <div className="grid grid-cols-4 gap-x-5 gap-y-5">
+        {Array.from({ length: 12 }, (_, month) => {
+          const firstDay = new Date(year, month, 1);
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          // Mon-first offset: Sun=0 → offset 6, Mon=1 → offset 0, …
+          const startOffset = (firstDay.getDay() + 6) % 7;
+          const monthName = firstDay.toLocaleDateString("en-GB", { month: "long" });
 
-      {/* Employee rows */}
-      <div className="space-y-1">
-        {rows.map(({ emp, colour, reqs }) => (
-          <div key={emp.id} className="flex items-center gap-2">
-            <span className="text-xs text-gray-600 dark:text-gray-400 w-28 shrink-0 truncate text-right" title={emp.full_name}>
-              {emp.full_name.split(" ")[0]}
-            </span>
-            <div className="relative flex-1 h-4 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden">
-              {months.slice(1).map((m) => (
-                <div
-                  key={m.name}
-                  className="absolute top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700"
-                  style={{ left: `${m.offset}%` }}
-                />
-              ))}
-              {reqs.map((r) => {
-                const s = new Date(r.date_out) < yearStart ? yearStart : new Date(r.date_out);
-                const e = new Date(r.date_in) > yearEnd ? yearEnd : new Date(r.date_in);
-                const startDay = Math.round((s.getTime() - yearStart.getTime()) / 86400000);
-                const endDay = Math.round((e.getTime() - yearStart.getTime()) / 86400000);
-                const left = (startDay / totalDays) * 100;
-                const width = Math.max(((endDay - startDay + 1) / totalDays) * 100, 0.3);
-                return (
+          return (
+            <div key={month}>
+              <div className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">{monthName}</div>
+              <div className="grid grid-cols-7">
+                {DOW_LABELS.map((d, i) => (
                   <div
-                    key={r.id}
-                    className="absolute top-0.5 bottom-0.5 rounded-sm"
-                    style={{ left: `${left}%`, width: `${width}%`, backgroundColor: colour, opacity: 0.8 }}
-                    title={`${emp.full_name}: ${r.leave_type} · ${r.date_out} – ${r.date_in} (${r.days}d)`}
-                  />
-                );
-              })}
+                    key={i}
+                    className={`text-[9px] text-center font-medium pb-0.5 ${
+                      i >= 5 ? "text-gray-300 dark:text-gray-600" : "text-gray-400 dark:text-gray-500"
+                    }`}
+                  >
+                    {d}
+                  </div>
+                ))}
+
+                {/* blank cells before first day */}
+                {Array.from({ length: startOffset }, (_, i) => (
+                  <div key={`b${i}`} />
+                ))}
+
+                {Array.from({ length: daysInMonth }, (_, d) => {
+                  const day = d + 1;
+                  const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                  const empIds = dayMap.get(ds) ?? [];
+                  const isToday = ds === today;
+                  const dow = (new Date(year, month, day).getDay() + 6) % 7;
+                  const isWeekend = dow >= 5;
+
+                  const names = empIds.map(
+                    (id) => employees.find((e) => e.id === id)?.full_name ?? id
+                  );
+                  const tooltip = names.length > 0 ? names.join(", ") : undefined;
+
+                  return (
+                    <div key={day} className="flex flex-col items-center py-px" title={tooltip}>
+                      {empIds.length === 1 ? (
+                        /* single employee — solid colour circle */
+                        <span
+                          className="text-[9px] w-[18px] h-[18px] flex items-center justify-center rounded-full font-semibold leading-none"
+                          style={{ backgroundColor: empColour.get(empIds[0]), color: "#fff" }}
+                        >
+                          {day}
+                        </span>
+                      ) : empIds.length > 1 ? (
+                        /* multiple employees — day number + coloured dots */
+                        <>
+                          <span
+                            className={`text-[9px] w-[18px] h-[18px] flex items-center justify-center rounded-full leading-none ${
+                              isToday
+                                ? "bg-blue-600 text-white font-bold"
+                                : isWeekend
+                                ? "text-gray-300 dark:text-gray-600"
+                                : "text-gray-700 dark:text-gray-300 font-medium"
+                            }`}
+                          >
+                            {day}
+                          </span>
+                          <div className="flex gap-px mt-px">
+                            {empIds.slice(0, 3).map((id) => (
+                              <div
+                                key={id}
+                                className="w-[4px] h-[4px] rounded-full"
+                                style={{ backgroundColor: empColour.get(id) }}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        /* no leave */
+                        <span
+                          className={`text-[9px] w-[18px] h-[18px] flex items-center justify-center rounded-full leading-none ${
+                            isToday
+                              ? "bg-blue-600 text-white font-bold"
+                              : isWeekend
+                              ? "text-gray-300 dark:text-gray-600"
+                              : "text-gray-600 dark:text-gray-400"
+                          }`}
+                        >
+                          {day}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colour }} />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Legend */}
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 pl-[7.5rem]">
-        {rows.map(({ emp, colour }) => (
-          <div key={emp.id} className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: colour }} />
-            <span className="text-xs text-gray-500 dark:text-gray-400">{emp.full_name}</span>
-          </div>
-        ))}
-      </div>
+      {legendEmps.length === 0 ? (
+        <p className="text-xs text-gray-400 text-center pt-4">No approved leave recorded for {year}.</p>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5">
+          {legendEmps.map((emp) => (
+            <div key={emp.id} className="flex items-center gap-1.5">
+              <div
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: empColour.get(emp.id) }}
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400">{emp.full_name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -221,6 +278,11 @@ export default function LeaveRequestsPage() {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
   const [rejecting, setRejecting] = useState(false);
+
+  // Edit form (admin only, for approved/rejected requests)
+  const [editReq, setEditReq] = useState<LeaveRequest | null>(null);
+  const [editForm, setEditForm] = useState({ employee_id: "", leave_type: "Annual", date_out: "", date_in: "", detail: "", coverage: "" });
+  const [saving, setSaving] = useState(false);
 
   const isAdmin = me?.role === "admin" || me?.role === "superuser";
 
@@ -348,6 +410,76 @@ export default function LeaveRequestsPage() {
     await load();
   }
 
+  function openEdit(req: LeaveRequest) {
+    setEditReq(req);
+    setEditForm({
+      employee_id: req.employee_id,
+      leave_type: req.leave_type,
+      date_out: req.date_out,
+      date_in: req.date_in,
+      detail: req.detail ?? "",
+      coverage: req.coverage ?? "",
+    });
+  }
+
+  async function saveEdit() {
+    if (!editReq || !editForm.employee_id || !editForm.date_out || !editForm.date_in) return;
+    const emp = employees.find((e) => e.id === editForm.employee_id);
+    if (!emp) return;
+    setSaving(true);
+
+    const wdays = workingDays(editForm.date_out, editForm.date_in, emp.location, holidays);
+
+    await fetch(`/api/leave/requests/${editReq.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employee_id: editForm.employee_id,
+        leave_type: editForm.leave_type,
+        date_out: editForm.date_out,
+        date_in: editForm.date_in,
+        days: wdays.length,
+        detail: editForm.detail || null,
+        coverage: editForm.coverage || null,
+      }),
+    });
+
+    // For approved requests, replace the leave record with updated values
+    if (editReq.status === "Approved") {
+      const params = new URLSearchParams({
+        employee_id: editReq.employee_id,
+        start_date: editReq.date_out,
+        end_date: editReq.date_in,
+      });
+      await fetch(`/api/leave/records?${params}`, { method: "DELETE" });
+      await fetch("/api/leave/records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employee_id: editForm.employee_id,
+          type: editForm.leave_type,
+          start_date: editForm.date_out,
+          end_date: editForm.date_in,
+          days: wdays.length,
+          notes: editForm.detail || null,
+        }),
+      });
+    }
+
+    setEditReq(null);
+    setSaving(false);
+    await load();
+  }
+
+  function editDaysPreview(): string | null {
+    if (!editForm.date_out || !editForm.date_in || !editForm.employee_id) return null;
+    if (editForm.date_in < editForm.date_out) return "Return date must be after date out";
+    const emp = employees.find((e) => e.id === editForm.employee_id);
+    if (!emp) return null;
+    const wdays = workingDays(editForm.date_out, editForm.date_in, emp.location, holidays);
+    return `${wdays.length} working day${wdays.length !== 1 ? "s" : ""}`;
+  }
+
   const myEmp = me ? employees.find((e) => e.profile_id === me.id) : null;
   const pendingCount = requests.filter((r) => r.status === "Pending").length;
 
@@ -398,24 +530,6 @@ export default function LeaveRequestsPage() {
             );
           })}
         </div>
-
-        {/* ── Year Calendar (admin only) ── */}
-        {isAdmin && (
-          <div className="mb-6 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3">
-            <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => setCalYear((y) => y - 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm">◁</button>
-              <span className="font-semibold text-sm flex-1">{calYear} Leave Calendar</span>
-              <button onClick={() => setCalYear((y) => y + 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm">▷</button>
-              <button
-                onClick={() => setShowCal((v) => !v)}
-                className="ml-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                {showCal ? "Hide" : "Show"}
-              </button>
-            </div>
-            {showCal && <YearCalendar year={calYear} requests={requests} employees={employees} />}
-          </div>
-        )}
 
         {/* Requests list */}
         {filtered.length === 0 ? (
@@ -500,7 +614,10 @@ export default function LeaveRequestsPage() {
                     </div>
                   )}
                   {isAdmin && req.status !== "Pending" && (
-                    <button onClick={() => deleteRequest(req.id)} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0">Delete</button>
+                    <div className="flex gap-3 flex-shrink-0">
+                      <button onClick={() => openEdit(req)} className="text-xs text-gray-400 hover:text-blue-500">Edit</button>
+                      <button onClick={() => deleteRequest(req.id)} className="text-xs text-gray-400 hover:text-red-500">Delete</button>
+                    </div>
                   )}
                 </div>
 
@@ -520,6 +637,85 @@ export default function LeaveRequestsPage() {
               </div>
               );
             })}
+          </div>
+        )}
+
+        {/* ── Year Calendar (admin only, Pending tab only) ── */}
+        {isAdmin && filter === "Pending" && (
+          <div className="mt-6 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={() => setCalYear((y) => y - 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm">◁</button>
+              <span className="font-semibold text-sm flex-1">{calYear} Leave Calendar</span>
+              <button onClick={() => setCalYear((y) => y + 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm">▷</button>
+              <button
+                onClick={() => setShowCal((v) => !v)}
+                className="ml-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                {showCal ? "Hide" : "Show"}
+              </button>
+            </div>
+            {showCal && <YearCalendar year={calYear} requests={requests} employees={employees} />}
+          </div>
+        )}
+
+        {/* ── Edit Modal (admin, approved/rejected requests) ── */}
+        {editReq && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-6">
+              <h2 className="text-lg font-semibold mb-1">Edit Leave Request</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
+                Status will remain <span className="font-medium">{editReq.status}</span>
+                {editReq.status === "Approved" && " — leave record will be updated automatically"}
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Employee</label>
+                  <select className={inputCls} value={editForm.employee_id} onChange={(e) => setEditForm((f) => ({ ...f, employee_id: e.target.value }))}>
+                    <option value="">Select employee…</option>
+                    {employees.map((e) => (
+                      <option key={e.id} value={e.id}>{e.full_name} {e.location === "oman" ? "🇴🇲" : "🇦🇪"}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Leave Type</label>
+                  <select className={inputCls} value={editForm.leave_type} onChange={(e) => setEditForm((f) => ({ ...f, leave_type: e.target.value }))}>
+                    {LEAVE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">First Day of Leave</label>
+                    <input type="date" className={inputCls} value={editForm.date_out} onChange={(e) => setEditForm((f) => ({ ...f, date_out: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Last Day of Leave</label>
+                    <input type="date" className={inputCls} value={editForm.date_in} onChange={(e) => setEditForm((f) => ({ ...f, date_in: e.target.value }))} />
+                  </div>
+                </div>
+                {editDaysPreview() && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">{editDaysPreview()}</p>
+                )}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Reason / Detail (optional)</label>
+                  <input type="text" className={inputCls} value={editForm.detail} onChange={(e) => setEditForm((f) => ({ ...f, detail: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Coverage (optional)</label>
+                  <input type="text" className={inputCls} value={editForm.coverage} onChange={(e) => setEditForm((f) => ({ ...f, coverage: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={saveEdit}
+                  disabled={saving || !editForm.employee_id || !editForm.date_out || !editForm.date_in}
+                  className={btnPrimary}
+                >
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
+                <button onClick={() => setEditReq(null)} className={btnSecondary}>Cancel</button>
+              </div>
+            </div>
           </div>
         )}
 
