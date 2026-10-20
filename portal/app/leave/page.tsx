@@ -74,7 +74,7 @@ function parseLocalDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function workingDays(startStr: string, endStr: string, location: string, holidays: Holiday[]): string[] {
+function leaveDays(startStr: string, endStr: string, location: string, holidays: Holiday[]): string[] {
   const confirmed = new Set(
     holidays.filter((h) => h.confirmed && h.country === location).map((h) => h.date.slice(0, 10))
   );
@@ -82,10 +82,8 @@ function workingDays(startStr: string, endStr: string, location: string, holiday
   const cur = parseLocalDate(startStr);
   const end = parseLocalDate(endStr);
   while (cur <= end) {
-    const dow = cur.getDay();
     const ds = localDateStr(cur);
-    const isWeekend = location === "oman" ? dow === 5 || dow === 6 : dow === 0 || dow === 6;
-    if (!isWeekend && !confirmed.has(ds)) dates.push(ds);
+    if (!confirmed.has(ds)) dates.push(ds);
     cur.setDate(cur.getDate() + 1);
   }
   return dates;
@@ -226,8 +224,8 @@ export default function EmployeeLeavePage() {
   async function saveEntry() {
     if (!modalEmp || !entryForm.start_date || !entryForm.end_date) return;
     setSavingEntry(true);
-    const wdays = workingDays(entryForm.start_date, entryForm.end_date, modalEmp.location, holidays);
-    const days = wdays.length * Number(entryForm.multiplier);
+    const daysArr = leaveDays(entryForm.start_date, entryForm.end_date, modalEmp.location, holidays);
+    const days = daysArr.length * Number(entryForm.multiplier);
     const body = {
       employee_id: modalEmp.id,
       type: entryForm.type,
@@ -362,11 +360,8 @@ export default function EmployeeLeavePage() {
   function entryPreview(): string | null {
     if (!modalEmp || !entryForm.start_date || !entryForm.end_date) return null;
     if (entryForm.end_date < entryForm.start_date) return "End date must be after start date";
-    const wdays = workingDays(entryForm.start_date, entryForm.end_date, modalEmp.location, holidays);
-    const total = wdays.length * Number(entryForm.multiplier);
-    const weekendSkipped = Array.from({ length: (new Date(entryForm.end_date).getTime() - new Date(entryForm.start_date).getTime()) / 86400000 + 1 })
-      .map((_, i) => { const d = new Date(entryForm.start_date); d.setDate(d.getDate() + i); return d.getDay(); })
-      .filter((dow) => modalEmp.location === "oman" ? dow === 5 || dow === 6 : dow === 0 || dow === 6).length;
+    const days = leaveDays(entryForm.start_date, entryForm.end_date, modalEmp.location, holidays);
+    const total = days.length * Number(entryForm.multiplier);
     const holCount = Array.from({ length: (new Date(entryForm.end_date).getTime() - new Date(entryForm.start_date).getTime()) / 86400000 + 1 })
       .filter((_, i) => {
         const d = new Date(entryForm.start_date);
@@ -374,7 +369,7 @@ export default function EmployeeLeavePage() {
         const ds = d.toISOString().slice(0, 10);
         return holidays.some((h) => h.confirmed && h.country === modalEmp.location && h.date === ds);
       }).length;
-    return `${total} day${total !== 1 ? "s" : ""} (${wdays.length} working day${wdays.length !== 1 ? "s" : ""}${weekendSkipped ? `, ${weekendSkipped} weekend day${weekendSkipped !== 1 ? "s" : ""} skipped` : ""}${holCount ? `, ${holCount} holiday${holCount !== 1 ? "s" : ""} excluded` : ""})`;
+    return `${total} day${total !== 1 ? "s" : ""}${holCount ? ` (${holCount} holiday${holCount !== 1 ? "s" : ""} excluded)` : ""}`;
   }
 
   // ── Renders ──────────────────────────────────────────────────────────────
@@ -517,7 +512,7 @@ export default function EmployeeLeavePage() {
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={holForm.confirmed} onChange={(e) => setHolForm((f) => ({ ...f, confirmed: e.target.checked }))} />
-                Confirmed (included in working day calculations)
+                Confirmed (excluded from leave day count)
               </label>
             </div>
             <div className="flex gap-3 mt-6">
@@ -774,7 +769,7 @@ function EmployeeModal(p: ModalProps) {
                   {confirmedHolsInPeriod + unconfirmedHolsInPeriod > 0 && (
                     <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-300">
                       {emp.location === "oman" ? "🇴🇲" : "🇦🇪"} {confirmedHolsInPeriod} confirmed bank holiday{confirmedHolsInPeriod !== 1 ? "s" : ""}
-                      {unconfirmedHolsInPeriod > 0 && ` (+ ${unconfirmedHolsInPeriod} unconfirmed)`} fall within this period — excluded from working day counts.
+                      {unconfirmedHolsInPeriod > 0 && ` (+ ${unconfirmedHolsInPeriod} unconfirmed)`} fall within this period — excluded from leave day counts.
                     </div>
                   )}
                   {periodRecords.map((r) => <RecordRow key={r.id} r={r} />)}

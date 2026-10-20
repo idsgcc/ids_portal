@@ -49,7 +49,7 @@ function parseLocalDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function workingDays(startStr: string, endStr: string, location: string, holidays: Holiday[]): string[] {
+function leaveDays(startStr: string, endStr: string, location: string, holidays: Holiday[]): string[] {
   const confirmed = new Set(
     holidays.filter((h) => h.confirmed && h.country === location).map((h) => h.date.slice(0, 10))
   );
@@ -57,10 +57,8 @@ function workingDays(startStr: string, endStr: string, location: string, holiday
   const cur = parseLocalDate(startStr);
   const end = parseLocalDate(endStr);
   while (cur <= end) {
-    const dow = cur.getDay();
     const ds = localDateStr(cur);
-    const isWeekend = location === "oman" ? dow === 5 || dow === 6 : dow === 0 || dow === 6;
-    if (!isWeekend && !confirmed.has(ds)) dates.push(ds);
+    if (!confirmed.has(ds)) dates.push(ds);
     cur.setDate(cur.getDate() + 1);
   }
   return dates;
@@ -326,8 +324,8 @@ export default function LeaveRequestsPage() {
     if (form.date_in < form.date_out) return "Return date must be after date out";
     const emp = employees.find((e) => e.id === form.employee_id);
     if (!emp) return null;
-    const wdays = workingDays(form.date_out, form.date_in, emp.location, holidays);
-    return `${wdays.length} working day${wdays.length !== 1 ? "s" : ""}`;
+    const wdays = leaveDays(form.date_out, form.date_in, emp.location, holidays);
+    return `${wdays.length} day${wdays.length !== 1 ? "s" : ""}`;
   }
 
   async function submitRequest() {
@@ -335,7 +333,7 @@ export default function LeaveRequestsPage() {
     const emp = employees.find((e) => e.id === form.employee_id);
     if (!emp) return;
     setSubmitting(true);
-    const wdays = workingDays(form.date_out, form.date_in, emp.location, holidays);
+    const wdays = leaveDays(form.date_out, form.date_in, emp.location, holidays);
     await fetch("/api/leave/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -428,7 +426,7 @@ export default function LeaveRequestsPage() {
     if (!emp) return;
     setSaving(true);
 
-    const wdays = workingDays(editForm.date_out, editForm.date_in, emp.location, holidays);
+    const wdays = leaveDays(editForm.date_out, editForm.date_in, emp.location, holidays);
 
     await fetch(`/api/leave/requests/${editReq.id}`, {
       method: "PATCH",
@@ -476,8 +474,8 @@ export default function LeaveRequestsPage() {
     if (editForm.date_in < editForm.date_out) return "Return date must be after date out";
     const emp = employees.find((e) => e.id === editForm.employee_id);
     if (!emp) return null;
-    const wdays = workingDays(editForm.date_out, editForm.date_in, emp.location, holidays);
-    return `${wdays.length} working day${wdays.length !== 1 ? "s" : ""}`;
+    const wdays = leaveDays(editForm.date_out, editForm.date_in, emp.location, holidays);
+    return `${wdays.length} day${wdays.length !== 1 ? "s" : ""}`;
   }
 
   const myEmp = me ? employees.find((e) => e.profile_id === me.id) : null;
