@@ -135,22 +135,19 @@ export default function EmployeeForm({
           <Field label="Full Name *">{input("full_name", "text", "Paul Vincent Winick")}</Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date of Birth">{input("dob", "date")}</Field>
-            <Field label="Join Date">{input("join_date", "date")}</Field>
+            <Field label="Date Joined">{input("join_date", "date")}</Field>
           </div>
           <Field label="Handle (without @)">{input("handle", "text", "paul")}</Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Location">
-              <select
-                className={inputCls}
-                value={form.location}
-                onChange={(e) => set("location", e.target.value)}
-              >
-                <option value="uae">UAE (Mon–Fri)</option>
-                <option value="oman">Oman (Sun–Thu)</option>
-              </select>
-            </Field>
-            <Field label="Sick Leave Days / Year">{input("sick_leave_days", "number", "15")}</Field>
-          </div>
+          <Field label="Location">
+            <select
+              className={inputCls}
+              value={form.location}
+              onChange={(e) => set("location", e.target.value)}
+            >
+              <option value="uae">UAE (Mon–Fri)</option>
+              <option value="oman">Oman (Sun–Thu)</option>
+            </select>
+          </Field>
           <Field label="Portal Account (for self-service leave)">
             <select
               className={inputCls}
